@@ -27,6 +27,8 @@ public:
 
     void queryOnline();
 
+    void checkInternet();
+
 signals:
     // ---- 通用日志（未来 textarea 直接连这个）----
     // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR"
@@ -47,6 +49,9 @@ signals:
     void onlineInfoReceived(const QJsonObject &onlineInfo);
     void onlineQueryFailed(const QString &errorMessage);
 
+    void internetReachable();
+    void internetUnreachable(const QString &reason);
+
 private:
     // ---------- 内部异步步骤 ----------
     void requestChallenge();
@@ -65,6 +70,8 @@ private:
     void onPollStepFinished(QNetworkReply *reply);
 
     void onQueryOnlineFinished(QNetworkReply *reply);
+
+    void onCheckInternetFinished(QNetworkReply *reply);
 
     // ---------- 辅助 ----------
     void log(const QString &level, const QString &msg);
@@ -94,7 +101,7 @@ private:
     PollCallback m_pollCallback;
 
     static constexpr int kPollIntervalMs = 1000;
-    static constexpr const char *kBaseUrl = "http://10.6.21.2";
+    static constexpr auto kBaseUrl = "http://10.6.21.2";
 };
 
 #endif // SRUNCLIENT_H

@@ -23,6 +23,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 // ReSharper disable once CppUnusedIncludeDirective
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -194,6 +195,11 @@ void MainWindow::onLoginSucceeded(const QJsonObject &) {
     m_statusLabel->setText("已在线");
     appendLog("SUCCESS", "登录成功");
     saveConfigSilently();
+
+    appendLog("STEP", "3 秒后检查外网连通性...");
+    QTimer::singleShot(3000, this, [this] {
+        m_client->checkInternet();
+    });
 }
 
 void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
@@ -215,6 +221,14 @@ void MainWindow::onLogoutFailed(const QString &msg, const QJsonObject &) {
     if (msg.contains("Network unreachable")) {
         appendLog("ERROR", "你似乎没有连接到校园网，请检查你的网络配置");
     }
+}
+
+void MainWindow::onInternetReachable() {
+    appendLog("SUCCESS", "外网连通 ✓");
+}
+
+void MainWindow::onInternetUnreachable(const QString &reason) {
+    appendLog("WARN", "外网不通: " + reason);
 }
 
 void MainWindow::applyLogExpanded(bool expanded) {

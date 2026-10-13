@@ -38,6 +38,8 @@ private slots:
     void onLoginFailed(const QString &msg, const QJsonObject &raw);
     void onLogoutSucceeded(const QJsonObject &info);
     void onLogoutFailed(const QString &msg, const QJsonObject &raw);
+    void onInternetReachable();
+    void onInternetUnreachable(const QString &reason);
 
 private:
     void buildUi();

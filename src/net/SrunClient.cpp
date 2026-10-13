@@ -203,6 +203,54 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply) {
     emit onlineQueryFailed(err);
 }
 
+void SrunClient::checkInternet() {
+    log("STEP", "→ 检查外网连通性");
+
+    const QString testUrl("http://firefox-portal-detection.com/generate_204");
+    QNetworkRequest req{QUrl(testUrl)};
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    req.setTransferTimeout(5000);  // 5s
+    req.setHeader(QNetworkRequest::UserAgentHeader, getUAHeader());
+    QNetworkReply *reply = m_nam->get(req);
+
+    log("HTTP", "GET " + testUrl);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        onCheckInternetFinished(reply);
+    });
+}
+
+void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
+{
+    const QByteArray data = reply->readAll();
+    const auto netErr = reply->error();
+    const QString netErrStr = reply->errorString();
+    const int statusCode = reply->attribute(
+        QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    reply->deleteLater();
+
+    // 1. 网络层错误（DNS 失败、超时、连接拒绝等）
+    if (netErr != QNetworkReply::NoError) {
+        log("WARN", QString("外网不通: %1").arg(netErrStr));
+        emit internetUnreachable(netErrStr);
+        return;
+    }
+
+    // 2. 状态码不是 204 —— 被 captive portal 劫持或异常
+    //    常见情况：200（登录页）/ 302（重定向到登录页）
+    if (statusCode != 204) {
+        const QString reason = QString("HTTP %1（可能被 captive portal 劫持）")
+                                    .arg(statusCode);
+        log("WARN", "外网异常: " + reason);
+        emit internetUnreachable(reason);
+        return;
+    }
+
+    // 3. 状态码 204 —— 真通畅
+    log("INFO", "外网连通 ✓");
+    emit internetReachable();
+}
+
 // ============================================================
 // 登录流程：步骤 1 - challenge
 // ============================================================
