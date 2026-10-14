@@ -26,7 +26,6 @@
 #include <QTextDocument>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QTimer>
-#include <QVBoxLayout>
 #include <QWidget>
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
@@ -195,9 +194,11 @@ void MainWindow::onAuthClicked() {
 
     if (m_onlineState == OnlineState::Offline || m_onlineState == OnlineState::Unknown) {
         appendLog("STEP", "用户点击登录");
+        setOnlineState(OnlineState::Busy);
         m_client->login(m_config.username, m_config.password, m_config.acId, m_config.domain);
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("STEP", "用户点击注销");
+        setOnlineState(OnlineState::Busy);
         m_client->logout(m_config.username, m_config.acId, m_config.domain);
     } else {  // Busy
         appendLog("WARN", "当前后台正在进行其它请求，请稍后再试！");
@@ -228,9 +229,11 @@ void MainWindow::onLogMessage(const QString &level, const QString &msg) {
     appendLog(level, msg);
 }
 
-void MainWindow::onLoginSucceeded(const QJsonObject &) {
+void MainWindow::onLoginSucceeded(const QJsonObject &info) {
     m_statusLabel->setText("已在线");
     appendLog("SUCCESS", "登录成功");
+    applyOnlineInfo(info);
+    setOnlineState(OnlineState::Online);
     saveConfigSilently();
 
     appendLog("STEP", "3 秒后检查外网连通性...");
@@ -245,10 +248,12 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     if (msg.contains("Network unreachable")) {
         appendLog("ERROR", "你似乎没有连接到校园网，请检查你的网络配置");
     }
+    setOnlineState(OnlineState::Offline);
 }
 
 void MainWindow::onLogoutSucceeded(const QJsonObject &) {
     m_statusLabel->setText("已离线");
+    setOnlineState(OnlineState::Offline);
     appendLog("SUCCESS", "注销成功");
 }
 
@@ -266,6 +271,15 @@ void MainWindow::onInternetReachable() {
 
 void MainWindow::onInternetUnreachable(const QString &reason) {
     appendLog("WARN", "外网不通: " + reason);
+}
+
+void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
+    if (online) {
+        applyOnlineInfo(info);
+        setOnlineState(OnlineState::Online);
+    } else {
+        setOnlineState(OnlineState::Offline);
+    }
 }
 
 void MainWindow::applyLogExpanded(bool expanded) {
@@ -329,6 +343,38 @@ bool MainWindow::saveConfigSilently() {
     return m_config.save();
 }
 
+void MainWindow::applyOnlineInfo(const QJsonObject &info) {
+    const QString username = info.value("user_name").toString();
+    const QString domain   = info.value("domain").toString();
+    const QString domainWithAt = domain.isEmpty() ? QString() : ("@" + domain);
+
+    if (!username.isEmpty()) {
+        m_usernameEdit->setText(username);
+    }
+    m_domainEdit->setText(domainWithAt);
+
+    // acId / password 服务器不返回，不动
+}
+
+void MainWindow::setOnlineState(OnlineState s) {
+    m_onlineState = s;
+    updateUiForState();
+}
+
+void MainWindow::updateUiForState() {
+    const bool editable = m_onlineState != OnlineState::Online;
+    m_usernameEdit->setEnabled(editable);
+    m_passwordEdit->setEnabled(editable);
+    m_acIdEdit->setEnabled(editable);
+    m_domainEdit->setEnabled(editable);
+
+    const bool editable2 = m_onlineState != OnlineState::Busy;
+    m_authBtn->setEnabled(editable2);
+    m_saveBtn->setEnabled(editable2);
+
+    m_authBtn->setText(m_onlineState == OnlineState::Online ? "注销": "登录");
+}
+
 void MainWindow::connectSignals() {
     // UI 按钮 → 自己的槽
     connect(m_toggleLogBtn, &QToolButton::clicked,
@@ -355,4 +401,18 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onLogoutSucceeded);
     connect(m_client, &SrunClient::logoutFailed,
             this, &MainWindow::onLogoutFailed);
+    connect(m_client, &SrunClient::onlineStatusRefreshed,
+        this, &MainWindow::onOnlineStatusRefreshed);
+    connect(m_client, &SrunClient::internetReachable,
+        this, &MainWindow::onInternetReachable);
+    connect(m_client, &SrunClient::internetUnreachable,
+            this, &MainWindow::onInternetUnreachable);
+
+    // 自动登录组的自动保存
+    connect(m_autoStartCheck, &QCheckBox::toggled,
+            this, [this] { saveConfigSilently(); });
+    connect(m_autoLoginCheck, &QCheckBox::toggled,
+            this, [this] { saveConfigSilently(); });
+    connect(m_ssidEdit, &QLineEdit::editingFinished,
+            this, [this] { saveConfigSilently(); });
 }

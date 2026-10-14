@@ -5,10 +5,10 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QString>
-#include <QTimer>
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTimer;
 
 class SrunClient : public QObject {
     Q_OBJECT
@@ -30,7 +30,7 @@ public:
 
     void checkInternet();
 
-    void startPolling(int intervalMs = 1000);
+    void startPolling(int intervalMs = 30000);
     void stopPolling();
 
 signals:
@@ -90,6 +90,13 @@ private:
     static QString getUAHeader();
     static QString previewBody(const QByteArray &data, int maxLen = 200);
     static QString buildQuery(const QList<QPair<QString, QString>> &params);
+
+    void emitLoginSucceeded(const QJsonObject &info);
+    void emitLoginFailed(const QString &msg, const QJsonObject &raw);
+    void emitLogoutSucceeded(const QJsonObject &info);
+    void emitLogoutFailed(const QString &msg, const QJsonObject &raw);
+
+    void doPeriodicPoll();
 
     // ---------- 状态 ----------
     QNetworkAccessManager *m_nam = nullptr;

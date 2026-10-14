@@ -1,7 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <qboxlayout.h>
 #include <QMainWindow>
 
 #include "config/Config.h"
@@ -14,6 +13,8 @@ class QToolButton;
 class QLabel;
 class QPlainTextEdit;
 class QCloseEvent;
+class QVBoxLayout;
+class QTimer;
 
 enum class OnlineState { Unknown, Offline, Online, Busy };
 
@@ -44,6 +45,7 @@ private slots:
     void onLogoutFailed(const QString &msg, const QJsonObject &raw);
     void onInternetReachable();
     void onInternetUnreachable(const QString &reason);
+    void onOnlineStatusRefreshed(bool online, const QJsonObject &info);
 
 private:
     void loadIcons();
@@ -65,6 +67,10 @@ private:
     void appendLog(const QString &level, const QString &msg);
 
     bool saveConfigSilently();
+
+    void applyOnlineInfo(const QJsonObject &info);
+    void setOnlineState(OnlineState s);
+    void updateUiForState();
 
     // 成员
     SrunClient *m_client = nullptr;

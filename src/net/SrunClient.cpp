@@ -95,6 +95,67 @@ QString SrunClient::buildQuery(const QList<QPair<QString, QString> > &params) {
     return parts.join('&');
 }
 
+void SrunClient::emitLoginSucceeded(const QJsonObject &info) {
+    m_busy = false;
+    emit loginSucceeded(info);
+}
+
+void SrunClient::emitLoginFailed(const QString &msg, const QJsonObject &raw) {
+    m_busy = false;
+    emit loginFailed(msg, raw);
+}
+
+void SrunClient::emitLogoutSucceeded(const QJsonObject &info) {
+    m_busy = false;
+    emit logoutSucceeded(info);
+}
+
+void SrunClient::emitLogoutFailed(const QString &msg, const QJsonObject &raw) {
+    m_busy = false;
+    emit logoutFailed(msg, raw);
+}
+
+void SrunClient::doPeriodicPoll()
+{
+    if (m_busy) return;
+
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(kBaseUrl);
+    QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
+    applyCommonHeaders(req);
+    QNetworkReply *reply = m_nam->get(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        onPeriodicPollFinished(reply);
+    });
+}
+
+void SrunClient::onPeriodicPollFinished(QNetworkReply *reply)
+{
+    const QByteArray data = reply->readAll();
+    const auto netErr = reply->error();
+    reply->deleteLater();
+
+    if (m_busy) return;
+
+    if (netErr != QNetworkReply::NoError) {
+        return;
+    }
+
+    bool ok = false;
+    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    if (!ok) {
+        return;
+    }
+
+    const QString err = obj.value("error").toString();
+    if (err == "ok") {
+        emit onlineStatusRefreshed(true, obj);
+    } else if (err == "not_online_error") {
+        emit onlineStatusRefreshed(false, {});
+    }
+    // 其他错误：静默丢弃，等下一轮
+}
+
 // ============================================================
 // 公开入口：login
 // ============================================================
@@ -108,6 +169,7 @@ void SrunClient::login(const QString &username, const QString &password,
     m_ip.clear();
     m_token.clear();
     m_ipResolved = false;
+    m_busy = true;
 
     log("STEP", "========== 开始登录流程 ==========");
     log("INFO", QString("user=%1%2  ac_id=%3")
@@ -125,6 +187,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
     m_username = username;
     m_acId = acId;
     m_domain = domain;
+    m_busy = true;
 
     log("STEP", "========== 开始注销流程 ==========");
     log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
@@ -190,12 +253,14 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply) {
                 .arg(obj.value("user_name").toString(),
                      obj.value("online_ip").toString()));
         emit onlineInfoReceived(obj);
+        emit onlineStatusRefreshed(true, obj);
         return;
     }
 
     if (err == "not_online_error") {
         log("INFO", "当前不在线");
         emit onlineQueryFailed("not_online_error");
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 
@@ -218,6 +283,24 @@ void SrunClient::checkInternet() {
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         onCheckInternetFinished(reply);
     });
+}
+
+void SrunClient::startPolling(int intervalMs) {
+    if (!m_pollTimer) {
+        m_pollTimer = new QTimer(this);
+        connect(m_pollTimer, &QTimer::timeout,
+            this, &SrunClient::doPeriodicPoll);
+    }
+    m_pollTimer->start(intervalMs);
+    log("INFO", QString("在线轮询已启动，间隔 %1 ms").arg(intervalMs));
+
+    doPeriodicPoll();
+}
+
+void SrunClient::stopPolling() {
+    if (m_pollTimer) {
+        m_pollTimer->stop();
+    }
 }
 
 void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
@@ -247,7 +330,7 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
     }
 
     // 3. 状态码 204 —— 真通畅
-    log("SUCCESS", "外网连通 ✓");
+    // log("SUCCESS", "外网连通 ✓");  // 在MainWindow中实现了
     emit internetReachable();
 }
 
@@ -286,7 +369,7 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "challenge 网络错误: " + netErrStr);
-        emit loginFailed("网络错误: " + netErrStr, {});
+        emitLoginFailed("网络错误: " + netErrStr, {});
         return;
     }
 
@@ -296,14 +379,14 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
     const QJsonObject obj = parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "challenge 响应解析失败");
-        emit loginFailed("challenge 响应解析失败", {});
+        emitLoginFailed("challenge 响应解析失败", {});
         return;
     }
 
     const QString token = obj.value("challenge").toString();
     if (token.isEmpty()) {
         log("ERROR", "challenge 字段为空");
-        emit loginFailed("未获取到 challenge", obj);
+        emitLoginFailed("未获取到 challenge", obj);
         return;
     }
 
@@ -382,7 +465,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "auth 网络错误: " + netErrStr);
-        emit loginFailed("网络错误: " + netErrStr, {});
+        emitLoginFailed("网络错误: " + netErrStr, {});
         return;
     }
 
@@ -392,7 +475,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
     const QJsonObject obj = parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "auth 响应解析失败");
-        emit loginFailed("auth 响应解析失败", {});
+        emitLoginFailed("auth 响应解析失败", {});
         return;
     }
 
@@ -409,7 +492,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
             errMsg = err;
         }
         log("ERROR", "认证失败: " + errMsg);
-        emit loginFailed(errMsg, obj);
+        emitLoginFailed(errMsg, obj);
         return;
     }
 
@@ -424,10 +507,10 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
                          obj.value("products_name").toString(),
                          QString::number(obj.value("sum_bytes").toVariant().toLongLong())));
             setStage("已在线");
-            emit loginSucceeded(obj);
+            emitLoginSucceeded(obj);
         } else {
             log("ERROR", "登录后未上线");
-            emit loginFailed("登录后未上线", obj);
+            emitLoginFailed("登录后未上线", obj);
         }
     });
 }
@@ -469,7 +552,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "logout 网络错误: " + netErrStr);
-        emit logoutFailed("网络错误: " + netErrStr, {});
+        emitLogoutFailed("网络错误: " + netErrStr, {});
         return;
     }
 
@@ -479,7 +562,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
     const QJsonObject obj = parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "logout 响应解析失败");
-        emit logoutFailed("logout 响应解析失败", {});
+        emitLogoutFailed("logout 响应解析失败", {});
         return;
     }
 
@@ -493,7 +576,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
             errMsg = err;
         }
         log("ERROR", "注销请求被拒绝: " + errMsg);
-        emit logoutFailed(errMsg, obj);
+        emitLogoutFailed(errMsg, obj);
         return;
     }
 
@@ -504,10 +587,10 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
         if (success) {
             log("INFO", "已确认下线");
             setStage("已离线");
-            emit logoutSucceeded(obj);
+            emitLogoutSucceeded(obj);
         } else {
             log("ERROR", "注销超时");
-            emit logoutFailed("注销超时", obj);
+            emitLogoutFailed("注销超时", obj);
         }
     });
 }

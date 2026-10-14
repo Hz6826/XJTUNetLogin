@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
 
     SrunClient client;
     MainWindow w(&client);
+    client.startPolling();
     w.show();
 
     return a.exec();
