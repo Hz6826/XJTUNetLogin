@@ -38,7 +38,7 @@
 #include <QFile>
 #include <QStandardPaths>
 #include <QUrl>
-#include <QProcess>
+#include <QClipboard>
 
 namespace {
     bool isDarkTheme() {
@@ -413,7 +413,9 @@ void MainWindow::onOpenLogDirClicked() {
     }
 
 #ifdef Q_OS_WIN
-    appendLog("WARN", QString("因为Windows上的特殊bug，暂不支持显示文件夹窗口，请自行在文件浏览器中打开该目录：%1").arg(dir));
+    QGuiApplication::clipboard()->setText(QDir::toNativeSeparators(dir));
+    appendLog("INFO", QString("日志目录路径已复制到剪贴板：%1").arg(dir));
+    appendLog("INFO", "粘贴到资源管理器地址栏即可打开");
 #else
     QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
 #endif
@@ -445,7 +447,7 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
         appendLog("ERROR", "你似乎没有连接到校园网，请检查你的网络配置");
     }
     if (msg.contains("E2901")) {
-        appendLog("ERROR", "用户名或密码错误！");
+        appendLog("ERROR", "用户名或密码错误");
     }
     setOnlineState(OnlineState::Offline);
 }
