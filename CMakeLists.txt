@@ -14,6 +14,7 @@ find_package(Qt6 REQUIRED COMPONENTS
         Gui
         Widgets
         Network
+        Svg
 )
 
 qt_standard_project_setup()
@@ -32,6 +33,7 @@ qt_add_executable(XJTUNetLogin
         src/config/Config.cpp
         src/ui/MainWindow.cpp
         src/ui/MainWindow.h
+        resources/resources.qrc
         # 后续逐步加入：
         # src/app/Application.cpp
         # src/app/TrayController.cpp
@@ -50,6 +52,7 @@ target_link_libraries(XJTUNetLogin PRIVATE
         Qt6::Gui
         Qt6::Widgets
         Qt6::Network
+        Qt6::Svg
 )
 
 # ---------- Windows 开发时拷贝 Qt 运行时 DLL ----------
@@ -77,10 +80,20 @@ if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
                 "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/platforms/")
     endif ()
 
-    foreach (QT_LIB Core Gui Widgets Network)
+    foreach (QT_LIB Core Gui Widgets Network Svg)
         add_custom_command(TARGET XJTUNetLogin POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"
                 "$<TARGET_FILE_DIR:XJTUNetLogin>")
     endforeach ()
+
+    if (EXISTS "${QT_INSTALL_PATH}/plugins/imageformats/qsvg${DEBUG_SUFFIX}.dll")
+        add_custom_command(TARGET XJTUNetLogin POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/imageformats/")
+        add_custom_command(TARGET XJTUNetLogin POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                "${QT_INSTALL_PATH}/plugins/imageformats/qsvg${DEBUG_SUFFIX}.dll"
+                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/imageformats/")
+    endif ()
 endif ()

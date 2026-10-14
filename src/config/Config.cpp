@@ -56,6 +56,7 @@ Config Config::fromJson(const QJsonObject &root) {
     const QJsonObject uiCfg = root.value("ui").toObject();
 
     c.logExpanded = uiCfg.value("logExpanded").toBool(true);
+    c.logHttp = uiCfg.value("logHttp").toBool(false);
 
     return c;
 }
@@ -74,6 +75,7 @@ QJsonObject Config::toJson() const {
 
     QJsonObject uiCfg;
     uiCfg["logExpanded"] = logExpanded;
+    uiCfg["logHttp"] = logHttp;
 
     QJsonObject root;
     root["auth"] = authCfg;

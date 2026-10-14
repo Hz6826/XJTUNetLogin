@@ -22,13 +22,14 @@ struct Config {
 
     // ----------  ui 分组 ----------
     bool logExpanded = true;
+    bool logHttp = false;
 
     // ---------- 静态入口 ----------
     // 从磁盘加载；文件不存在或损坏时返回默认值
     static Config load();
 
     // 保存到磁盘；成功返回 true
-    bool save() const;
+    [[nodiscard]] bool save() const;
 
     // 配置文件路径（调试用）
     static QString filePath();
@@ -36,7 +37,7 @@ struct Config {
 private:
     // JSON 序列化辅助
     static Config fromJson(const QJsonObject &obj);
-    QJsonObject toJson() const;
+    [[nodiscard]] QJsonObject toJson() const;
 };
 
 #endif // CONFIG_H

@@ -9,6 +9,7 @@ class SrunClient;
 class QLineEdit;
 class QCheckBox;
 class QPushButton;
+class QToolButton;
 class QLabel;
 class QPlainTextEdit;
 class QCloseEvent;
@@ -42,6 +43,7 @@ private slots:
     void onInternetUnreachable(const QString &reason);
 
 private:
+    void loadIcons();
     void buildUi();
     void loadConfigToUi();
     void connectSignals();
@@ -70,9 +72,14 @@ private:
     QPushButton *m_saveBtn = nullptr;
 
     QLabel *m_statusLabel = nullptr;
-    QPushButton *m_clearLogBtn = nullptr;
-    QPushButton *m_toggleLogBtn = nullptr;
+    QCheckBox *m_logHttpCheck = nullptr;
+    QToolButton *m_clearLogBtn = nullptr;
+    QToolButton *m_toggleLogBtn = nullptr;
     QPlainTextEdit *m_logTextEdit = nullptr;
+
+    QIcon m_iconChevronDown;
+    QIcon m_iconChevronUp;
+    QIcon m_iconTrash;
 
     // 固定窗口尺寸
     static constexpr int kWindowWidth           = 380;

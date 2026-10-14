@@ -19,6 +19,8 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QToolButton>
+#include <QIcon>
 #include <QTextCharFormat>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -32,11 +34,13 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     , m_client(client) {
     m_config = Config::load();
 
+    loadIcons();
     buildUi();
     loadConfigToUi();
     connectSignals();
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
+    m_client->checkInternet();
 
     setWindowTitle(QString("%1 v.%2 by %3").arg(AppInfo::Description, AppInfo::Version, AppInfo::Author));
 }
@@ -52,9 +56,15 @@ void MainWindow::logWelcome() {
     // appendLog("INFO", "{彩蛋TIP的占位符}");  // TODO
     appendLog("INFO", QString("当前版本: v%1").arg(AppInfo::Version));
     // TODO 检查版本
-    appendLog("INFO", QString("项目地址：%1").arg(AppInfo::RepoUrl));
-    appendLog("INFO", QString("本项目以 %1 开源，完全免费！如果你认为该软件帮助到了你，"
+    appendLog("INFO", QString("项目地址: %1").arg(AppInfo::RepoUrl));
+    appendLog("INFO", QString("本项目以%1开源，完全免费！如果你认为该软件帮助到了你，"
                               "麻烦在GitHub点个Star，或将软件分享给朋友，你的支持是我继续创作的动力~").arg(AppInfo::License));
+}
+
+void MainWindow::loadIcons() {
+    m_iconChevronDown = QIcon(":/icons/chevron-down.svg");
+    m_iconChevronUp   = QIcon(":/icons/chevron-up.svg");
+    m_iconTrash       = QIcon(":/icons/trash-2.svg");
 }
 
 void MainWindow::buildUi() {
@@ -122,9 +132,14 @@ void MainWindow::buildUi() {
     auto *logLabel = new QLabel("日志");
     logHeaderRow->addWidget(logLabel);
     logHeaderRow->addStretch();
-    m_clearLogBtn = new QPushButton("清空日志");
+
+    m_clearLogBtn = new QToolButton;
+    m_clearLogBtn->setAutoRaise(true);
+    m_clearLogBtn->setToolTip("清空日志");
+    m_clearLogBtn->setIcon(m_iconTrash);
     logHeaderRow->addWidget(m_clearLogBtn);
-    m_toggleLogBtn = new QPushButton;
+    m_toggleLogBtn = new QToolButton;
+    m_toggleLogBtn->setAutoRaise(true);
     logHeaderRow->addWidget(m_toggleLogBtn);
 
     mainLayout->addLayout(logHeaderRow);
@@ -233,7 +248,8 @@ void MainWindow::onInternetUnreachable(const QString &reason) {
 
 void MainWindow::applyLogExpanded(bool expanded) {
     m_logTextEdit->setVisible(expanded);
-    m_toggleLogBtn->setText(expanded ? "▼" : "▲");
+    m_toggleLogBtn->setIcon(expanded ? m_iconChevronUp : m_iconChevronDown);
+    m_toggleLogBtn->setToolTip(expanded ? "收起日志区" : "展开日志区");
     setFixedSize(kWindowWidth,
                  expanded ? kWindowHeightExpanded : kWindowHeightCollapsed);
 }
@@ -293,7 +309,7 @@ bool MainWindow::saveConfigSilently() {
 
 void MainWindow::connectSignals() {
     // UI 按钮 → 自己的槽
-    connect(m_toggleLogBtn, &QPushButton::clicked,
+    connect(m_toggleLogBtn, &QToolButton::clicked,
             this, &MainWindow::onToggleLogClicked);
     connect(m_loginBtn, &QPushButton::clicked,
             this, &MainWindow::onLoginClicked);
@@ -301,7 +317,7 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onLogoutClicked);
     connect(m_saveBtn, &QPushButton::clicked,
             this, &MainWindow::onSaveConfigClicked);
-    connect(m_clearLogBtn, &QPushButton::clicked,
+    connect(m_clearLogBtn, &QToolButton::clicked,
             this, &MainWindow::onClearLogClicked);
 
     // SrunClient 信号 → 自己的槽
