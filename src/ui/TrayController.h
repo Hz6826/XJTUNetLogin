@@ -13,6 +13,9 @@ class MainWindow;
 class QMenu;
 class QAction;
 
+// 前向声明：不 include MainWindow.h，避免循环依赖
+enum class OnlineState : int;
+
 class TrayController : public QObject {
     Q_OBJECT
 
@@ -23,10 +26,9 @@ public:
 private slots:
     void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
     void onShowWindow();
-    void onLoginRequested();
-    void onLogoutRequested();
+    void onAuthRequested();      // 合并"立即登录/注销"两个菜单项
     void onQuit();
-    void onOnlineStateChanged(int state);
+    void onOnlineStateChanged(OnlineState state);
 
 private:
     void createTray();
@@ -42,12 +44,10 @@ private:
     QSystemTrayIcon *m_tray = nullptr;
     QMenu *m_menu = nullptr;
     QAction *m_showAction = nullptr;
-    QAction *m_loginAction = nullptr;
-    QAction *m_logoutAction = nullptr;
+    QAction *m_authAction = nullptr;    // ← 合并成一个动作
     QAction *m_quitAction = nullptr;
 
-    // 0=Unknown, 1=Offline, 2=Online, 3=Busy
-    int m_onlineState = 0;
+    OnlineState m_onlineState = static_cast<OnlineState>(0);  // Unknown
 };
 
 #endif // TRAYCONTROLLER_H

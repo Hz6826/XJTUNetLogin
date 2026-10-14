@@ -1,12 +1,14 @@
 #include <AppInfo.h>
 #include <QApplication>
+// ReSharper disable once CppUnusedIncludeDirective
 #include <QIcon>
 
 #include "net/SrunClient.h"
 #include "ui/MainWindow.h"
+#include "ui/TrayController.h"
 
 int main(int argc, char *argv[]) {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
     QApplication::setOrganizationName(AppInfo::Author);
     QApplication::setApplicationName(AppInfo::Name);
     QApplication::setApplicationVersion(AppInfo::Version);
@@ -21,9 +23,11 @@ int main(int argc, char *argv[]) {
     QApplication::setWindowIcon(appIcon);
 
     SrunClient client;
-    MainWindow w(&client);
-    client.startPolling();
-    w.show();
+    MainWindow window(&client);
+    TrayController tray(&client, &window);
 
-    return a.exec();
+    client.startPolling();
+    window.show();
+
+    return app.exec();
 }

@@ -16,5 +16,10 @@
         <file>icons/app/app-64.png</file>
         <file>icons/app/app-128.png</file>
         <file>icons/app/app-256.png</file>
+
+        <file>icons/tray/tray-offline-16.png</file>
+        <file>icons/tray/tray-offline-32.png</file>
+        <file>icons/tray/tray-online-16.png</file>
+        <file>icons/tray/tray-online-32.png</file>
     </qresource>
 </RCC>

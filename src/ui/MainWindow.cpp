@@ -423,13 +423,13 @@ void MainWindow::onOpenLogDirClicked() {
         return;
     }
 
-#ifdef Q_OS_WIN
-    QGuiApplication::clipboard()->setText(QDir::toNativeSeparators(dir));
-    appendLog("INFO", QString("日志目录路径已复制到剪贴板：%1").arg(dir));
-    appendLog("INFO", "粘贴到资源管理器地址栏即可打开");
-#else
-    QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
-#endif
+    const QUrl url = QUrl::fromLocalFile(dir);
+    if (!QDesktopServices::openUrl(url)) {
+        qWarning() << "无法打开日志目录:" << dir;
+        // 降级：复制路径到剪贴板
+        QGuiApplication::clipboard()->setText(QDir::toNativeSeparators(dir));
+        appendLog("WARN", "无法自动打开，路径已复制到剪贴板：" + dir);
+    }
 }
 
 void MainWindow::onStageChanged(const QString &stage) {

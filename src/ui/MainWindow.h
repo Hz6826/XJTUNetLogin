@@ -18,7 +18,7 @@ class QVBoxLayout;
 class QTimer;
 class QTabWidget;
 
-enum class OnlineState { Unknown, Offline, Online, Busy };
+enum class OnlineState : int { Unknown, Offline, Online, Busy };
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

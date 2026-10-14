@@ -14,19 +14,6 @@
 #include <QTemporaryFile>
 
 QString Config::appDataDir() {
-    // 优先用 exe 所在目录（便携模式）
-    const QString exeDir = QCoreApplication::applicationDirPath();
-
-    // 试写一个临时文件判断可写性
-    // 比 QFileInfo::isWritable 更可靠（Windows 上后者有时误判）
-    QTemporaryFile test(exeDir + "/.write_test_XXXXXX");
-    if (test.open()) {
-        test.close();
-        test.remove();       // 立刻删掉测试文件
-        return exeDir;
-    }
-
-    // 不可写 → 回退到标准位置
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 }
 
