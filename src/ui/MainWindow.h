@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QFile>
 #include <QMainWindow>
 
 #include "config/Config.h"
@@ -24,18 +25,19 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(SrunClient *client, QWidget *parent = nullptr);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
-    bool eventFilter(QObject *obj, QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
 private slots:
     void onToggleLogClicked();
-
     void onAuthClicked();
     void onPingClicked();
     void onSaveConfigClicked();
     void onClearLogClicked();
+    void onOpenLogDirClicked();
 
     void onStageChanged(const QString &stage);
     void onLogMessage(const QString &level, const QString &msg);
@@ -79,10 +81,24 @@ private:
 
     void logWelcome();
 
+    void writeLogToFile(const QString &level, const QString &msg);
+    void ensureLogFileForToday();
+    QString logDirPath() const;
+
     // 成员
     SrunClient *m_client = nullptr;
     Config m_config;
-    bool m_filterHttpLog = false;
+    QTimer *m_postLoginTimer = nullptr;
+    QFile m_logFile;
+    QDate m_logFileDate;
+    bool m_lastDarkTheme = true;
+    OnlineState m_onlineState = OnlineState::Unknown;
+
+    // 图标
+    QIcon m_iconChevronDown;
+    QIcon m_iconChevronUp;
+    QIcon m_iconTrash;
+    QIcon m_iconFolder;
 
     // UI 元素
     QLineEdit *m_usernameEdit = nullptr;
@@ -104,13 +120,9 @@ private:
     QToolButton *m_toggleLogBtn = nullptr;
     QPlainTextEdit *m_logTextEdit = nullptr;
 
-    QIcon m_iconChevronDown;
-    QIcon m_iconChevronUp;
-    QIcon m_iconTrash;
-
-    OnlineState m_onlineState = OnlineState::Unknown;
-
     QTabWidget *m_detailTab = nullptr;
+
+    QToolButton *m_openLogDirBtn = nullptr;
 
     // 在线信息面板的字段 Label（每个字段一个 QLabel）
     QLabel *m_infoAccountLabel    = nullptr;

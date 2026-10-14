@@ -25,13 +25,27 @@
 #include <QTextCursor>
 #include <QTextDocument>
 // ReSharper disable once CppUnusedIncludeDirective
-#include <QVBoxLayout>
+#include <QApplication>
 #include <QTimer>
 #include <QWidget>
 #include <QTabWidget>
 #include <QJsonDocument>
 #include <QEvent>
 #include <QToolTip>
+#include <QDate>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
+#include <QUrl>
+#include <QProcess>
+
+namespace {
+    bool isDarkTheme() {
+        const QColor bg = QApplication::palette().color(QPalette::Window);
+        return bg.lightness() < 128;
+    }
+}
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     : QMainWindow(parent)
@@ -39,8 +53,11 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     m_config = Config::load();
 
     loadIcons();
+    m_lastDarkTheme = isDarkTheme();
     buildUi();
     loadConfigToUi();
+    m_postLoginTimer = new QTimer(this);
+    m_postLoginTimer->setSingleShot(true);
     connectSignals();
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
@@ -54,10 +71,27 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     hide();
 }
 
+void MainWindow::changeEvent(QEvent *event) {
+    if (event->type() == QEvent::PaletteChange) {
+        const bool nowDark = isDarkTheme();
+        if (nowDark != m_lastDarkTheme) {
+            m_lastDarkTheme = nowDark;
+            // 重新加载图标
+            loadIcons();
+            // 把新图标应用到所有用到的地方
+            m_toggleLogBtn->setIcon(m_config.logExpanded
+                                        ? m_iconChevronUp
+                                        : m_iconChevronDown);
+            m_clearLogBtn->setIcon(m_iconTrash);
+            m_openLogDirBtn->setIcon(m_iconFolder);
+        }
+    }
+    QMainWindow::changeEvent(event);
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     if (event->type() == QEvent::ToolTip) {
-        auto *widget = qobject_cast<QWidget *>(obj);
-        if (widget) {
+        if (auto *widget = qobject_cast<QWidget *>(obj)) {
             // 优先用 customTooltip property（动态内容）
             QString text = widget->property("customTooltip").toString();
 
@@ -88,10 +122,52 @@ void MainWindow::logWelcome() {
                               "麻烦在GitHub点个Star，或将软件分享给朋友，你的支持是我继续创作的动力~").arg(AppInfo::License));
 }
 
+void MainWindow::writeLogToFile(const QString &level, const QString &msg) {
+    ensureLogFileForToday();
+    if (!m_logFile.isOpen()) return;
+
+    const QString ts = QDateTime::currentDateTime()
+                           .toString("yyyy-MM-dd HH:mm:ss.zzz");
+    const QString line = QString("[%1] [%2] %3\n").arg(ts, level, msg);
+    m_logFile.write(line.toUtf8());
+    m_logFile.flush();     // 关键：防止崩溃/异常退出丢日志
+}
+
+void MainWindow::ensureLogFileForToday() {
+    const QDate today = QDate::currentDate();
+    if (m_logFile.isOpen() && m_logFileDate == today) return;
+    if (m_logFile.isOpen()) {
+        m_logFile.close();
+    }
+    const QString dir = logDirPath();
+    if (!QDir().mkpath(dir)) {
+        qWarning() << "无法创建日志目录:" << dir;
+        return;
+    }
+    const QString fullPath = QString("%1/xjtu-netlogin-%2.log")
+    .arg(dir, today.toString("yyyyMMdd"));
+    m_logFile.setFileName(fullPath);
+    if (!m_logFile.open(QIODevice::Append | QIODevice::Text)) {
+        qWarning() << "无法打开日志文件:" << fullPath
+                   << "错误:" << m_logFile.errorString();
+        return;
+    }
+
+    m_logFileDate = today;
+}
+
+QString MainWindow::logDirPath() const {
+    return Config::appDataDir() + "/logs";
+}
+
 void MainWindow::loadIcons() {
-    m_iconChevronDown = QIcon(":/icons/chevron-down.svg");
-    m_iconChevronUp   = QIcon(":/icons/chevron-up.svg");
-    m_iconTrash       = QIcon(":/icons/trash-2.svg");
+    const QString dir = isDarkTheme()
+                            ? ":/icons/dark"
+                            : ":/icons/light";
+    m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
+    m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
+    m_iconTrash       = QIcon(dir + "/trash-2.svg");
+    m_iconFolder      = QIcon(dir + "/folder.svg");
 }
 
 void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
@@ -143,6 +219,7 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
 
     auto *ssidLabel = new QLabel("SSID");
     ssidLabel->setToolTip("即Wi-Fi名称，默认XJTU_STU");
+    ssidLabel->installEventFilter(this);
     m_ssidEdit = new QLineEdit;
     m_autoStartCheck = new QCheckBox("开机自启");
     m_autoLoginCheck = new QCheckBox("自动登录");
@@ -209,6 +286,12 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
     m_clearLogBtn->setToolTip("清空日志");
     m_clearLogBtn->setIcon(m_iconTrash);
     toolRow->addWidget(m_clearLogBtn);
+
+    m_openLogDirBtn = new QToolButton;
+    m_openLogDirBtn->setAutoRaise(true);
+    m_openLogDirBtn->setToolTip("打开日志目录");
+    m_openLogDirBtn->setIcon(m_iconFolder);   // 需要新图标
+    toolRow->addWidget(m_openLogDirBtn);
 
     layout->addLayout(toolRow);
 
@@ -295,6 +378,10 @@ void MainWindow::onAuthClicked() {
         m_client->login(m_config.username, m_config.password, m_config.acId, m_config.domain);
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("STEP", "用户点击注销");
+        if (m_postLoginTimer->isActive()) {
+            m_postLoginTimer->stop();
+            appendLog("WARN", "取消了计划的外网连通性检查");
+        }
         setOnlineState(OnlineState::Busy);
         m_client->logout(m_config.username, m_config.acId, m_config.domain);
     } else {  // Busy
@@ -318,6 +405,20 @@ void MainWindow::onClearLogClicked() {
     m_logTextEdit->clear();
 }
 
+void MainWindow::onOpenLogDirClicked() {
+    const QString dir = logDirPath();
+    if (!QDir().mkpath(dir)) {
+        qWarning() << "无法创建日志目录:" << dir;
+        return;
+    }
+
+#ifdef Q_OS_WIN
+    appendLog("WARN", QString("因为Windows上的特殊bug，暂不支持显示文件夹窗口，请自行在文件浏览器中打开该目录：%1").arg(dir));
+#else
+    QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+#endif
+}
+
 void MainWindow::onStageChanged(const QString &stage) {
     m_statusLabel->setText(stage);
 }
@@ -334,9 +435,7 @@ void MainWindow::onLoginSucceeded(const QJsonObject &info) {
     saveConfigSilently();
 
     appendLog("STEP", "3 秒后检查外网连通性...");
-    QTimer::singleShot(3000, this, [this] {
-        m_client->checkInternet();
-    });
+    m_postLoginTimer->start(3000);
 }
 
 void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
@@ -344,6 +443,9 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     appendLog("ERROR", "登录失败: " + msg);
     if (msg.contains("Network unreachable")) {
         appendLog("ERROR", "你似乎没有连接到校园网，请检查你的网络配置");
+    }
+    if (msg.contains("E2901")) {
+        appendLog("ERROR", "用户名或密码错误！");
     }
     setOnlineState(OnlineState::Offline);
 }
@@ -390,7 +492,9 @@ void MainWindow::applyLogExpanded(bool expanded) {
 }
 
 void MainWindow::appendLog(const QString &level, const QString &msg) {
-    if (m_filterHttpLog && level == "HTTP") {
+    writeLogToFile(level, msg);
+
+    if (m_config.filterHttpLog && level == "HTTP") {
         return;   // 直接丢弃，不写入
     }
 
@@ -433,6 +537,9 @@ void MainWindow::loadConfigToUi() {
     m_autoStartCheck->setChecked(m_config.autoStart);
     m_autoLoginCheck->setChecked(m_config.autoLogin);
     m_ssidEdit->setText(m_config.ssid);
+
+    m_filterHttpCheck->setChecked(m_config.filterHttpLog);
+    m_detailTab->setCurrentIndex(m_config.currentTab);
 }
 
 bool MainWindow::saveConfigSilently() {
@@ -443,6 +550,10 @@ bool MainWindow::saveConfigSilently() {
     m_config.autoStart = m_autoStartCheck->isChecked();
     m_config.autoLogin = m_autoLoginCheck->isChecked();
     m_config.ssid      = m_ssidEdit->text();
+
+    m_config.filterHttpLog = m_filterHttpCheck->isChecked();
+    m_config.currentTab = m_detailTab->currentIndex();
+
     return m_config.save();
 }
 
@@ -596,45 +707,53 @@ QString MainWindow::formatDuration(qint64 seconds) {
 }
 
 void MainWindow::connectSignals() {
+    connect(m_postLoginTimer, &QTimer::timeout, this, [this] {
+        m_client->checkInternet();
+    });
+
     // UI 按钮 → 自己的槽
     connect(m_toggleLogBtn, &QToolButton::clicked,
-            this, &MainWindow::onToggleLogClicked);
+        this, &MainWindow::onToggleLogClicked);
     connect(m_authBtn, &QPushButton::clicked,
-            this, &MainWindow::onAuthClicked);
+        this, &MainWindow::onAuthClicked);
     connect(m_pingBtn, &QPushButton::clicked,
-            this, &MainWindow::onPingClicked);
+        this, &MainWindow::onPingClicked);
     connect(m_saveBtn, &QPushButton::clicked,
-            this, &MainWindow::onSaveConfigClicked);
+        this, &MainWindow::onSaveConfigClicked);
     connect(m_clearLogBtn, &QToolButton::clicked,
-            this, &MainWindow::onClearLogClicked);
+        this, &MainWindow::onClearLogClicked);
     connect(m_filterHttpCheck, &QCheckBox::toggled,
-        this, [this](bool on) {m_filterHttpLog = on;});
+        this, [this] { saveConfigSilently(); });
+    connect(m_detailTab, &QTabWidget::currentChanged,
+        this, [this] { saveConfigSilently(); });
+    connect(m_openLogDirBtn, &QToolButton::clicked,
+        this, &MainWindow::onOpenLogDirClicked);
 
     // SrunClient 信号 → 自己的槽
     connect(m_client, &SrunClient::logMessage,
-            this, &MainWindow::onLogMessage);
+        this, &MainWindow::onLogMessage);
     connect(m_client, &SrunClient::stageChanged,
-            this, &MainWindow::onStageChanged);
+        this, &MainWindow::onStageChanged);
     connect(m_client, &SrunClient::loginSucceeded,
-            this, &MainWindow::onLoginSucceeded);
+        this, &MainWindow::onLoginSucceeded);
     connect(m_client, &SrunClient::loginFailed,
-            this, &MainWindow::onLoginFailed);
+        this, &MainWindow::onLoginFailed);
     connect(m_client, &SrunClient::logoutSucceeded,
-            this, &MainWindow::onLogoutSucceeded);
+        this, &MainWindow::onLogoutSucceeded);
     connect(m_client, &SrunClient::logoutFailed,
-            this, &MainWindow::onLogoutFailed);
+        this, &MainWindow::onLogoutFailed);
     connect(m_client, &SrunClient::onlineStatusRefreshed,
         this, &MainWindow::onOnlineStatusRefreshed);
     connect(m_client, &SrunClient::internetReachable,
         this, &MainWindow::onInternetReachable);
     connect(m_client, &SrunClient::internetUnreachable,
-            this, &MainWindow::onInternetUnreachable);
+        this, &MainWindow::onInternetUnreachable);
 
     // 自动登录组的自动保存
     connect(m_autoStartCheck, &QCheckBox::toggled,
-            this, [this] { saveConfigSilently(); });
+        this, [this] { saveConfigSilently(); });
     connect(m_autoLoginCheck, &QCheckBox::toggled,
-            this, [this] { saveConfigSilently(); });
+        this, [this] { saveConfigSilently(); });
     connect(m_ssidEdit, &QLineEdit::editingFinished,
-            this, [this] { saveConfigSilently(); });
+        this, [this] { saveConfigSilently(); });
 }

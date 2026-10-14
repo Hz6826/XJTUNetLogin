@@ -10,10 +10,28 @@
 #include <QJsonParseError>
 #include <QStandardPaths>
 #include <QDir>
+#include <QCoreApplication>
+#include <QTemporaryFile>
+
+QString Config::appDataDir() {
+    // 优先用 exe 所在目录（便携模式）
+    const QString exeDir = QCoreApplication::applicationDirPath();
+
+    // 试写一个临时文件判断可写性
+    // 比 QFileInfo::isWritable 更可靠（Windows 上后者有时误判）
+    QTemporaryFile test(exeDir + "/.write_test_XXXXXX");
+    if (test.open()) {
+        test.close();
+        test.remove();       // 立刻删掉测试文件
+        return exeDir;
+    }
+
+    // 不可写 → 回退到标准位置
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+}
 
 QString Config::filePath() {
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    return dir + "/config.json";
+    return appDataDir() + "/config.json";
 }
 
 Config Config::load() {
@@ -56,7 +74,8 @@ Config Config::fromJson(const QJsonObject &root) {
     const QJsonObject uiCfg = root.value("ui").toObject();
 
     c.logExpanded = uiCfg.value("logExpanded").toBool(true);
-    c.logHttp = uiCfg.value("logHttp").toBool(false);
+    c.filterHttpLog = uiCfg.value("filterHttpLog").toBool(true);
+    c.currentTab = uiCfg.value("currentTab").toInt(0);
 
     return c;
 }
@@ -75,7 +94,8 @@ QJsonObject Config::toJson() const {
 
     QJsonObject uiCfg;
     uiCfg["logExpanded"] = logExpanded;
-    uiCfg["logHttp"] = logHttp;
+    uiCfg["filterHttpLog"] = filterHttpLog;
+    uiCfg["currentTab"] = currentTab;
 
     QJsonObject root;
     root["auth"] = authCfg;

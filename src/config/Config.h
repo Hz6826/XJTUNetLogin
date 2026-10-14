@@ -22,7 +22,10 @@ struct Config {
 
     // ----------  ui 分组 ----------
     bool logExpanded = true;
-    bool logHttp = false;
+    bool filterHttpLog = true;
+    int currentTab = 0;
+
+    static QString appDataDir();
 
     // ---------- 静态入口 ----------
     // 从磁盘加载；文件不存在或损坏时返回默认值
