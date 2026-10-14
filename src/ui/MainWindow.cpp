@@ -89,6 +89,11 @@ void MainWindow::buildUi() {
     domainLabel->setToolTip("学生账号请保留为默认值“@stu”");
     m_domainEdit = new QLineEdit;
 
+    usernameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    passwordLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    acIdLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    domainLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
     form->addWidget(usernameLabel, 0, 0);
     form->addWidget(m_usernameEdit, 0, 1, 1, 3);
     form->addWidget(passwordLabel, 1, 0);
