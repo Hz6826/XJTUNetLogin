@@ -72,26 +72,31 @@ void MainWindow::buildUi() {
     auto *mainLayout = new QVBoxLayout(central);
 
     auto *authGroup = new QGroupBox("账户信息");
-    auto *form = new QFormLayout(authGroup);
+    auto *form = new QGridLayout(authGroup);
+
+    auto *usernameLabel = new QLabel("用户名");
+    usernameLabel->setToolTip("即学号，不用加@stu等后缀");
     m_usernameEdit = new QLineEdit;
+
+    auto *passwordLabel = new QLabel("密码");
     m_passwordEdit = new QLineEdit;
     m_passwordEdit->setEchoMode(QLineEdit::Password);
-    m_acIdEdit = new QLineEdit;
-    m_domainEdit = new QLineEdit;
-    form->addRow("用户名", m_usernameEdit);
-    form->addRow("密码", m_passwordEdit);
 
-    auto *acIdDomainRow = new QHBoxLayout;
-    auto acIdLabel = new QLabel("AC ID");
+    auto *acIdLabel = new QLabel("AC ID");
     acIdLabel->setToolTip("如果你不知道这个是做什么的，保留默认“1”即可！（其实我也不知道）");
-    acIdDomainRow->addWidget(acIdLabel);
-    acIdDomainRow->addWidget(m_acIdEdit);
-    acIdDomainRow->addSpacing(16);
-    auto domainLabel = new QLabel("域");
+    m_acIdEdit = new QLineEdit;
+    auto *domainLabel = new QLabel("域");
     domainLabel->setToolTip("学生账号请保留为默认值“@stu”");
-    acIdDomainRow->addWidget(domainLabel);
-    acIdDomainRow->addWidget(m_domainEdit);
-    form->addRow(acIdDomainRow);
+    m_domainEdit = new QLineEdit;
+
+    form->addWidget(usernameLabel, 0, 0);
+    form->addWidget(m_usernameEdit, 0, 1, 1, 3);
+    form->addWidget(passwordLabel, 1, 0);
+    form->addWidget(m_passwordEdit, 1, 1, 1, 3);
+    form->addWidget(acIdLabel, 2, 0);
+    form->addWidget(m_acIdEdit, 2, 1);
+    form->addWidget(domainLabel, 2, 2);
+    form->addWidget(m_domainEdit, 2, 3);
 
     mainLayout->addWidget(authGroup);
 
