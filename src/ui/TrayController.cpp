@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QMenu>
 #include <QPainter>
+#include <QTimer>
 
 namespace {
 
@@ -28,6 +29,13 @@ TrayController::TrayController(SrunClient *client, MainWindow *window,
     , m_window(window) {
     createMenu();
     createTray();
+
+    m_blinkTimer = new QTimer(this);
+    m_blinkTimer->setInterval(500);   // 每 500ms 切换一次
+    connect(m_blinkTimer, &QTimer::timeout, this, [this] {
+        m_blinkPhase = !m_blinkPhase;
+        updateTrayIcon();
+    });
 
     // 主窗口状态 → 更新托盘
     connect(m_window, &MainWindow::onlineStateChanged,
@@ -100,7 +108,24 @@ void TrayController::createMenu() {
 
 void TrayController::updateTrayIcon() {
     if (!m_tray) return;
-    m_tray->setIcon(trayIconForState(m_onlineState));
+
+    // Busy 状态时切换显示两种图标；否则固定显示对应状态
+    OnlineState effective = m_onlineState;
+    if (m_onlineState == OnlineState::Busy) {
+        if (!m_blinkTimer->isActive()) {
+            m_blinkTimer->start();
+        }
+        // 按相位选灰或红
+        effective = m_blinkPhase ? OnlineState::Online
+                                 : OnlineState::Offline;
+    } else {
+        if (m_blinkTimer->isActive()) {
+            m_blinkTimer->stop();
+            m_blinkPhase = false;   // 重置相位，下次进入 Busy 从灰开始
+        }
+    }
+
+    m_tray->setIcon(trayIconForState(effective));
 }
 
 void TrayController::updateMenuActions() {

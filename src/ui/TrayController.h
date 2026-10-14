@@ -44,8 +44,10 @@ private:
     QSystemTrayIcon *m_tray = nullptr;
     QMenu *m_menu = nullptr;
     QAction *m_showAction = nullptr;
-    QAction *m_authAction = nullptr;    // ← 合并成一个动作
+    QAction *m_authAction = nullptr;
     QAction *m_quitAction = nullptr;
+    QTimer *m_blinkTimer = nullptr;
+    bool m_blinkPhase = false;
 
     OnlineState m_onlineState = static_cast<OnlineState>(0);  // Unknown
 };
