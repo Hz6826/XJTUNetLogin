@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <qboxlayout.h>
 #include <QMainWindow>
 
 #include "config/Config.h"
@@ -13,6 +14,8 @@ class QToolButton;
 class QLabel;
 class QPlainTextEdit;
 class QCloseEvent;
+
+enum class OnlineState { Unknown, Offline, Online, Busy };
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -28,8 +31,8 @@ protected:
 private slots:
     void onToggleLogClicked();
 
-    void onLoginClicked();
-    void onLogoutClicked();
+    void onAuthClicked();
+    void onPingClicked();
     void onSaveConfigClicked();
     void onClearLogClicked();
 
@@ -44,7 +47,17 @@ private slots:
 
 private:
     void loadIcons();
+
+    void buildUiAuthForm(QVBoxLayout *mainLayout);
+
+    void buildUiAutoLogin(QVBoxLayout *mainLayout);
+
+    void buildUiOpBtnRow(QVBoxLayout *mainLayout);
+
+    void buildUiInfoArea(QVBoxLayout *mainLayout);
+
     void buildUi();
+
     void loadConfigToUi();
     void connectSignals();
 
@@ -67,8 +80,8 @@ private:
     QCheckBox *m_autoLoginCheck = nullptr;
     QLineEdit *m_ssidEdit = nullptr;
 
-    QPushButton *m_loginBtn = nullptr;
-    QPushButton *m_logoutBtn = nullptr;
+    QPushButton *m_authBtn = nullptr;
+    QPushButton *m_pingBtn = nullptr;
     QPushButton *m_saveBtn = nullptr;
 
     QLabel *m_statusLabel = nullptr;
@@ -80,6 +93,8 @@ private:
     QIcon m_iconChevronDown;
     QIcon m_iconChevronUp;
     QIcon m_iconTrash;
+
+    OnlineState m_onlineState = OnlineState::Unknown;
 
     // 固定窗口尺寸
     static constexpr int kWindowWidth           = 380;

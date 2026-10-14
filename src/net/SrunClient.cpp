@@ -247,7 +247,7 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
     }
 
     // 3. 状态码 204 —— 真通畅
-    log("INFO", "外网连通 ✓");
+    log("SUCCESS", "外网连通 ✓");
     emit internetReachable();
 }
 

@@ -67,10 +67,7 @@ void MainWindow::loadIcons() {
     m_iconTrash       = QIcon(":/icons/trash-2.svg");
 }
 
-void MainWindow::buildUi() {
-    auto *central = new QWidget;
-    auto *mainLayout = new QVBoxLayout(central);
-
+void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
     auto *authGroup = new QGroupBox("账户信息");
     auto *form = new QGridLayout(authGroup);
 
@@ -103,38 +100,43 @@ void MainWindow::buildUi() {
     form->addWidget(domainLabel, 2, 2);
     form->addWidget(m_domainEdit, 2, 3);
 
+    form->setColumnStretch(1, 1);
+    form->setColumnStretch(3, 1);
+
     mainLayout->addWidget(authGroup);
+}
 
+void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
     auto *autoGroup = new QGroupBox("自动登录");
-    auto *autoLayout = new QVBoxLayout(autoGroup);
+    auto *autoLayout = new QHBoxLayout(autoGroup);
 
-    auto *autoLayoutR1 = new QHBoxLayout;
-    m_autoStartCheck = new QCheckBox("开机自启");
-    autoLayoutR1->addWidget(m_autoStartCheck);
-    m_autoLoginCheck = new QCheckBox("自动登录");
-    autoLayoutR1->addWidget(m_autoLoginCheck);
-    autoLayout->addLayout(autoLayoutR1);
-
-    auto *autoLayoutR2 = new QHBoxLayout;
     auto *ssidLabel = new QLabel("SSID");
-    autoLayoutR2->addWidget(ssidLabel);
     m_ssidEdit = new QLineEdit;
-    autoLayoutR2->addWidget(m_ssidEdit);
-    autoLayout->addLayout(autoLayoutR2);
+    m_autoStartCheck = new QCheckBox("开机自启");
+    m_autoLoginCheck = new QCheckBox("自动登录");
+
+    autoLayout->addWidget(ssidLabel);
+    autoLayout->addWidget(m_ssidEdit, 1);
+    autoLayout->addWidget(m_autoStartCheck);
+    autoLayout->addWidget(m_autoLoginCheck);
 
     mainLayout->addWidget(autoGroup);
+}
 
+void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     auto *buttonRow = new QHBoxLayout;
-    m_loginBtn = new QPushButton("登录");
-    buttonRow->addWidget(m_loginBtn, 1);
-    m_logoutBtn = new QPushButton("注销");
-    buttonRow->addWidget(m_logoutBtn, 1);
+    m_authBtn = new QPushButton("登录");  // 或注销，合并为一个按钮
+    buttonRow->addWidget(m_authBtn, 1);
+    m_pingBtn = new QPushButton("测试连接");
+    buttonRow->addWidget(m_pingBtn, 1);
     m_saveBtn = new QPushButton("保存配置");
     m_saveBtn->setToolTip("登录成功时自动保存配置");
     buttonRow->addWidget(m_saveBtn, 1);
 
     mainLayout->addLayout(buttonRow);
+}
 
+void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
     m_statusLabel = new QLabel("空闲");
     mainLayout->addWidget(m_statusLabel);
 
@@ -166,6 +168,16 @@ void MainWindow::buildUi() {
         "}"
     );
     mainLayout->addWidget(m_logTextEdit, 1);
+}
+
+void MainWindow::buildUi() {
+    auto *central = new QWidget;
+    auto *mainLayout = new QVBoxLayout(central);
+
+    buildUiAuthForm(mainLayout);
+    buildUiAutoLogin(mainLayout);
+    buildUiOpBtnRow(mainLayout);
+    buildUiInfoArea(mainLayout);
 
     setCentralWidget(central);
 }
@@ -175,25 +187,25 @@ void MainWindow::onToggleLogClicked() {
     applyLogExpanded(m_config.logExpanded);
 }
 
-void MainWindow::onLoginClicked() {
+void MainWindow::onAuthClicked() {
     m_config.username = m_usernameEdit->text();
     m_config.password = m_passwordEdit->text();
     m_config.acId     = m_acIdEdit->text();
     m_config.domain   = m_domainEdit->text();
 
-    // m_logTextEdit->clear();
-    appendLog("STEP", "用户点击登录");
-    m_client->login(m_config.username, m_config.password,
-                    m_config.acId, m_config.domain);
+    if (m_onlineState == OnlineState::Offline || m_onlineState == OnlineState::Unknown) {
+        appendLog("STEP", "用户点击登录");
+        m_client->login(m_config.username, m_config.password, m_config.acId, m_config.domain);
+    } else if (m_onlineState == OnlineState::Online) {
+        appendLog("STEP", "用户点击注销");
+        m_client->logout(m_config.username, m_config.acId, m_config.domain);
+    } else {  // Busy
+        appendLog("WARN", "当前后台正在进行其它请求，请稍后再试！");
+    }
 }
 
-void MainWindow::onLogoutClicked() {
-    m_config.username = m_usernameEdit->text();
-    m_config.acId     = m_acIdEdit->text();
-    m_config.domain   = m_domainEdit->text();
-
-    appendLog("STEP", "用户点击注销");
-    m_client->logout(m_config.username, m_config.acId, m_config.domain);
+void MainWindow::onPingClicked() {
+    m_client->checkInternet();
 }
 
 void MainWindow::onSaveConfigClicked() {
@@ -321,10 +333,10 @@ void MainWindow::connectSignals() {
     // UI 按钮 → 自己的槽
     connect(m_toggleLogBtn, &QToolButton::clicked,
             this, &MainWindow::onToggleLogClicked);
-    connect(m_loginBtn, &QPushButton::clicked,
-            this, &MainWindow::onLoginClicked);
-    connect(m_logoutBtn, &QPushButton::clicked,
-            this, &MainWindow::onLogoutClicked);
+    connect(m_authBtn, &QPushButton::clicked,
+            this, &MainWindow::onAuthClicked);
+    connect(m_pingBtn, &QPushButton::clicked,
+            this, &MainWindow::onPingClicked);
     connect(m_saveBtn, &QPushButton::clicked,
             this, &MainWindow::onSaveConfigClicked);
     connect(m_clearLogBtn, &QToolButton::clicked,

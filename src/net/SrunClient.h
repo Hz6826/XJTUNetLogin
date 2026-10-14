@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QString>
+#include <QTimer>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -29,6 +30,9 @@ public:
 
     void checkInternet();
 
+    void startPolling(int intervalMs = 1000);
+    void stopPolling();
+
 signals:
     // ---- 通用日志（未来 textarea 直接连这个）----
     // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR"
@@ -52,6 +56,8 @@ signals:
     void internetReachable();
     void internetUnreachable(const QString &reason);
 
+    void onlineStatusRefreshed(bool online, const QJsonObject &info);
+
 private:
     // ---------- 内部异步步骤 ----------
     void requestChallenge();
@@ -72,6 +78,8 @@ private:
     void onQueryOnlineFinished(QNetworkReply *reply);
 
     void onCheckInternetFinished(QNetworkReply *reply);
+
+    void onPeriodicPollFinished(QNetworkReply *reply);
 
     // ---------- 辅助 ----------
     void log(const QString &level, const QString &msg);
@@ -99,6 +107,9 @@ private:
     int m_pollMaxChecks = 3;
     QString m_pollSuccessError;
     PollCallback m_pollCallback;
+
+    QTimer *m_pollTimer = nullptr;
+    bool m_busy = false;
 
     static constexpr int kPollIntervalMs = 1000;
     static constexpr auto kBaseUrl = "http://10.6.21.2";
