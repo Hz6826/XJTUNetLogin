@@ -25,8 +25,13 @@
 #include <QTextCursor>
 #include <QTextDocument>
 // ReSharper disable once CppUnusedIncludeDirective
+#include <QVBoxLayout>
 #include <QTimer>
 #include <QWidget>
+#include <QTabWidget>
+#include <QJsonDocument>
+#include <QEvent>
+#include <QToolTip>
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     : QMainWindow(parent)
@@ -47,6 +52,29 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
 void MainWindow::closeEvent(QCloseEvent *event) {
     event->ignore();
     hide();
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::ToolTip) {
+        auto *widget = qobject_cast<QWidget *>(obj);
+        if (widget) {
+            // 优先用 customTooltip property（动态内容）
+            QString text = widget->property("customTooltip").toString();
+
+            // 没有 property 就回退到 Qt 内置 toolTip（静态内容）
+            if (text.isEmpty()) {
+                text = widget->toolTip();
+            }
+
+            if (!text.isEmpty()) {
+                const QPoint pos = widget->mapToGlobal(
+                    QPoint(0, widget->height() + 4));
+                QToolTip::showText(pos, text, widget);
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::logWelcome() {
@@ -72,6 +100,7 @@ void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
 
     auto *usernameLabel = new QLabel("用户名");
     usernameLabel->setToolTip("即学号，不用加@stu等后缀");
+    usernameLabel->installEventFilter(this);
     m_usernameEdit = new QLineEdit;
 
     auto *passwordLabel = new QLabel("密码");
@@ -80,9 +109,12 @@ void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
 
     auto *acIdLabel = new QLabel("AC ID");
     acIdLabel->setToolTip("如果你不知道这个是做什么的，保留默认“1”即可！（其实我也不知道）");
+    acIdLabel->installEventFilter(this);
     m_acIdEdit = new QLineEdit;
+
     auto *domainLabel = new QLabel("域");
     domainLabel->setToolTip("学生账号请保留为默认值“@stu”");
+    domainLabel->installEventFilter(this);
     m_domainEdit = new QLineEdit;
 
     usernameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -110,6 +142,7 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
     auto *autoLayout = new QHBoxLayout(autoGroup);
 
     auto *ssidLabel = new QLabel("SSID");
+    ssidLabel->setToolTip("即Wi-Fi名称，默认XJTU_STU");
     m_ssidEdit = new QLineEdit;
     m_autoStartCheck = new QCheckBox("开机自启");
     m_autoLoginCheck = new QCheckBox("自动登录");
@@ -128,7 +161,7 @@ void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     buttonRow->addWidget(m_authBtn, 1);
     m_pingBtn = new QPushButton("测试连接");
     buttonRow->addWidget(m_pingBtn, 1);
-    m_saveBtn = new QPushButton("保存配置");
+    m_saveBtn = new QPushButton("保存账户信息");
     m_saveBtn->setToolTip("登录成功时自动保存配置");
     buttonRow->addWidget(m_saveBtn, 1);
 
@@ -136,24 +169,48 @@ void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
 }
 
 void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
+    auto *statusRow = new QHBoxLayout;
     m_statusLabel = new QLabel("空闲");
-    mainLayout->addWidget(m_statusLabel);
+    statusRow->addWidget(m_statusLabel);
+    statusRow->addStretch();
 
-    auto *logHeaderRow = new QHBoxLayout;
-    auto *logLabel = new QLabel("日志");
-    logHeaderRow->addWidget(logLabel);
-    logHeaderRow->addStretch();
+    m_toggleLogBtn = new QToolButton;
+    m_toggleLogBtn->setAutoRaise(true);
+    m_toggleLogBtn->installEventFilter(this);
+    statusRow->addWidget(m_toggleLogBtn);
+
+    mainLayout->addLayout(statusRow);
+
+    m_detailTab = new QTabWidget;
+
+    auto *logPage = new QWidget;
+    buildUiLogPanel(logPage);
+    m_detailTab->addTab(logPage, "日志");
+
+    auto *infoPage = new QWidget;
+    buildUiInfoPanel(infoPage);
+    m_detailTab->addTab(infoPage, "在线信息");
+
+    mainLayout->addWidget(m_detailTab, 1);
+}
+
+void MainWindow::buildUiLogPanel(QWidget *parent) {
+    auto *layout = new QVBoxLayout(parent);
+    layout->setContentsMargins(0, 4, 0, 0);
+
+    // 顶部工具行
+    auto *toolRow = new QHBoxLayout;
+    m_filterHttpCheck = new QCheckBox("过滤 HTTP 日志");
+    toolRow->addWidget(m_filterHttpCheck);
+    toolRow->addStretch();
 
     m_clearLogBtn = new QToolButton;
     m_clearLogBtn->setAutoRaise(true);
     m_clearLogBtn->setToolTip("清空日志");
     m_clearLogBtn->setIcon(m_iconTrash);
-    logHeaderRow->addWidget(m_clearLogBtn);
-    m_toggleLogBtn = new QToolButton;
-    m_toggleLogBtn->setAutoRaise(true);
-    logHeaderRow->addWidget(m_toggleLogBtn);
+    toolRow->addWidget(m_clearLogBtn);
 
-    mainLayout->addLayout(logHeaderRow);
+    layout->addLayout(toolRow);
 
     m_logTextEdit = new QPlainTextEdit;
     m_logTextEdit->setReadOnly(true);
@@ -166,7 +223,47 @@ void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
         "  font-size: 12px;"
         "}"
     );
-    mainLayout->addWidget(m_logTextEdit, 1);
+    layout->addWidget(m_logTextEdit, 1);
+}
+
+void MainWindow::buildUiInfoPanel(QWidget *parent) {
+    auto *form = new QFormLayout(parent);
+    form->setContentsMargins(40, 8, 40, 8);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setHorizontalSpacing(12);
+    form->setVerticalSpacing(6);
+
+    auto makeValueLabel = []() {
+        auto *l = new QLabel("-");
+        l->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        return l;
+    };
+
+    m_infoAccountLabel     = makeValueLabel();
+    m_infoIpLabel          = makeValueLabel();
+    m_infoMacLabel         = makeValueLabel();
+    m_infoProductLabel     = makeValueLabel();
+    m_infoBillingLabel     = makeValueLabel();
+    m_infoUsedFlowLabel    = makeValueLabel();
+    m_infoUsedTimeLabel    = makeValueLabel();
+    m_infoBalanceLabel     = makeValueLabel();
+    m_infoDeviceTotalLabel = makeValueLabel();
+
+    m_infoUsedFlowLabel->installEventFilter(this);
+    m_infoUsedTimeLabel->installEventFilter(this);
+    m_infoDeviceTotalLabel->installEventFilter(this);
+
+    m_infoDeviceTotalLabel->setCursor(Qt::WhatsThisCursor);
+
+    form->addRow("账号",     m_infoAccountLabel);
+    form->addRow("IP",       m_infoIpLabel);
+    form->addRow("MAC",      m_infoMacLabel);
+    form->addRow("产品",     m_infoProductLabel);
+    form->addRow("计费策略", m_infoBillingLabel);
+    form->addRow("已用流量", m_infoUsedFlowLabel);
+    form->addRow("已用时长", m_infoUsedTimeLabel);
+    form->addRow("余额",     m_infoBalanceLabel);
+    form->addRow("在线设备", m_infoDeviceTotalLabel);
 }
 
 void MainWindow::buildUi() {
@@ -254,6 +351,7 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
 void MainWindow::onLogoutSucceeded(const QJsonObject &) {
     m_statusLabel->setText("已离线");
     setOnlineState(OnlineState::Offline);
+    clearOnlineInfoPanel();
     appendLog("SUCCESS", "注销成功");
 }
 
@@ -278,12 +376,13 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
         applyOnlineInfo(info);
         setOnlineState(OnlineState::Online);
     } else {
+        clearOnlineInfoPanel();
         setOnlineState(OnlineState::Offline);
     }
 }
 
 void MainWindow::applyLogExpanded(bool expanded) {
-    m_logTextEdit->setVisible(expanded);
+    m_detailTab->setVisible(expanded);
     m_toggleLogBtn->setIcon(expanded ? m_iconChevronUp : m_iconChevronDown);
     m_toggleLogBtn->setToolTip(expanded ? "收起日志区" : "展开日志区");
     setFixedSize(kWindowWidth,
@@ -291,6 +390,10 @@ void MainWindow::applyLogExpanded(bool expanded) {
 }
 
 void MainWindow::appendLog(const QString &level, const QString &msg) {
+    if (m_filterHttpLog && level == "HTTP") {
+        return;   // 直接丢弃，不写入
+    }
+
     QColor color;
     if (level == "ERROR") {
         color = QColor(0xF4, 0x47, 0x47);
@@ -354,6 +457,9 @@ void MainWindow::applyOnlineInfo(const QJsonObject &info) {
     m_domainEdit->setText(domainWithAt);
 
     // acId / password 服务器不返回，不动
+
+    // 填 Tab 2
+    updateOnlineInfoPanel(info);
 }
 
 void MainWindow::setOnlineState(OnlineState s) {
@@ -362,7 +468,7 @@ void MainWindow::setOnlineState(OnlineState s) {
 }
 
 void MainWindow::updateUiForState() {
-    const bool editable = m_onlineState != OnlineState::Online;
+    const bool editable = m_onlineState != OnlineState::Online && m_onlineState != OnlineState::Busy;
     m_usernameEdit->setEnabled(editable);
     m_passwordEdit->setEnabled(editable);
     m_acIdEdit->setEnabled(editable);
@@ -373,6 +479,109 @@ void MainWindow::updateUiForState() {
     m_saveBtn->setEnabled(editable2);
 
     m_authBtn->setText(m_onlineState == OnlineState::Online ? "注销": "登录");
+}
+
+void MainWindow::updateOnlineInfoPanel(const QJsonObject &info) {
+    // 账号
+    const QString user = info.value("user_name").toString();
+    const QString domain = info.value("domain").toString();
+    const QString account = user.isEmpty()
+        ? "-"
+        : (domain.isEmpty() ? user : user + "@" + domain);
+    m_infoAccountLabel->setText(account);
+
+    // 直接读的字段
+    auto textOrDash = [](const QJsonValue &v) {
+        const QString s = v.toString();
+        return s.isEmpty() ? QString("-") : s;
+    };
+
+    m_infoIpLabel->setText(textOrDash(info.value("online_ip")));
+    m_infoMacLabel->setText(textOrDash(info.value("user_mac")));
+    m_infoProductLabel->setText(textOrDash(info.value("products_name")));
+    m_infoBillingLabel->setText(textOrDash(info.value("billing_name")));
+
+    // 数值字段：统一走 toVariant()，兼容字符串和数字两种类型
+    const qint64 sumBytes    = info.value("sum_bytes").toVariant().toLongLong();
+    const qint64 sumSeconds  = info.value("sum_seconds").toVariant().toLongLong();
+    const double balance     = info.value("user_balance").toVariant().toDouble();
+    const int    deviceTotal = info.value("online_device_total").toVariant().toInt();
+
+    m_infoUsedFlowLabel->setText(formatBytes(sumBytes));
+    m_infoUsedFlowLabel->setProperty("customTooltip",
+                                     QString("%1 Byte(s)").arg(sumBytes));
+
+    m_infoUsedTimeLabel->setText(formatDuration(sumSeconds));
+    m_infoUsedTimeLabel->setProperty("customTooltip",
+                                     QString("%1 秒").arg(sumSeconds));
+
+    m_infoBalanceLabel->setText(QString::number(balance, 'f', 2) + " 元");
+    m_infoDeviceTotalLabel->setText(QString::number(deviceTotal) + " 台");
+
+    // tooltip
+    const QString detailStr = info.value("online_device_detail").toString();
+    QString tooltip;
+    if (!detailStr.isEmpty()) {
+        const QJsonDocument detailDoc = QJsonDocument::fromJson(detailStr.toUtf8());
+        const QJsonObject devices = detailDoc.object();
+        if (!devices.isEmpty()) {
+            QStringList lines;
+            lines << QString("共 %1 台设备:").arg(devices.size());
+            int idx = 1;
+            for (auto it = devices.constBegin(); it != devices.constEnd(); ++it, ++idx) {
+                const QJsonObject dev = it.value().toObject();
+                const QString os  = dev.value("os_name").toString();
+                const QString cls = dev.value("class_name").toString();
+                const QString ip  = dev.value("ip").toString();
+                lines << QString("%1. %2 (%3)").arg(idx).arg(os, cls);
+                lines << QString("    IP: %1").arg(ip);
+            }
+            tooltip = lines.join('\n');
+        }
+    }
+    m_infoDeviceTotalLabel->setProperty("customTooltip", tooltip);
+}
+
+void MainWindow::clearOnlineInfoPanel() {
+    m_infoAccountLabel->setText("-");
+    m_infoIpLabel->setText("-");
+    m_infoMacLabel->setText("-");
+    m_infoProductLabel->setText("-");
+    m_infoBillingLabel->setText("-");
+    m_infoUsedFlowLabel->setText("-");
+    m_infoUsedTimeLabel->setText("-");
+    m_infoBalanceLabel->setText("-");
+    m_infoDeviceTotalLabel->setText("-");
+    m_infoDeviceTotalLabel->setToolTip(QString());
+}
+
+QString MainWindow::formatBytes(qint64 bytes) {
+    if (bytes <= 0) return "0 B";
+    static const char *units[] = {"B", "KB", "MB", "GB", "TB"};
+    double v = static_cast<double>(bytes);
+    int i = 0;
+    while (v >= 1024.0 && i < 4) {
+        v /= 1024.0;
+        ++i;
+    }
+    return QString::number(v, 'f', 2) + " " + units[i];
+}
+
+QString MainWindow::formatDuration(qint64 seconds) {
+    if (seconds <= 0) return "0 秒";
+    const qint64 d = seconds / 86400;
+    const qint64 h = (seconds % 86400) / 3600;
+    const qint64 m = (seconds % 3600) / 60;
+    const qint64 s = seconds % 60;
+
+    QStringList parts;
+    if (d > 0) parts << QString::number(d) + " 天";
+    if (h > 0 || d > 0) parts << QString::number(h) + " 小时";
+    if (m > 0 || h > 0 || d > 0) parts << QString::number(m) + " 分";
+    // 只有总时长小于 1 分钟才显示秒，否则秒没有意义
+    if (s > 0 && parts.isEmpty()) parts << QString::number(s) + " 秒";
+    if (parts.isEmpty()) parts << "0 秒";
+    return parts.join(" ");
 }
 
 void MainWindow::connectSignals() {
@@ -387,6 +596,8 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onSaveConfigClicked);
     connect(m_clearLogBtn, &QToolButton::clicked,
             this, &MainWindow::onClearLogClicked);
+    connect(m_filterHttpCheck, &QCheckBox::toggled,
+        this, [this](bool on) {m_filterHttpLog = on;});
 
     // SrunClient 信号 → 自己的槽
     connect(m_client, &SrunClient::logMessage,

@@ -15,6 +15,7 @@ class QPlainTextEdit;
 class QCloseEvent;
 class QVBoxLayout;
 class QTimer;
+class QTabWidget;
 
 enum class OnlineState { Unknown, Offline, Online, Busy };
 
@@ -26,8 +27,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
-
-    void logWelcome();
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     void onToggleLogClicked();
@@ -51,12 +51,12 @@ private:
     void loadIcons();
 
     void buildUiAuthForm(QVBoxLayout *mainLayout);
-
     void buildUiAutoLogin(QVBoxLayout *mainLayout);
-
     void buildUiOpBtnRow(QVBoxLayout *mainLayout);
-
     void buildUiInfoArea(QVBoxLayout *mainLayout);
+
+    void buildUiLogPanel(QWidget *parent);
+    void buildUiInfoPanel(QWidget *parent);
 
     void buildUi();
 
@@ -72,9 +72,17 @@ private:
     void setOnlineState(OnlineState s);
     void updateUiForState();
 
+    void updateOnlineInfoPanel(const QJsonObject &info);
+    void clearOnlineInfoPanel();
+    static QString formatBytes(qint64 bytes);
+    static QString formatDuration(qint64 seconds);
+
+    void logWelcome();
+
     // 成员
     SrunClient *m_client = nullptr;
     Config m_config;
+    bool m_filterHttpLog = false;
 
     // UI 元素
     QLineEdit *m_usernameEdit = nullptr;
@@ -91,7 +99,7 @@ private:
     QPushButton *m_saveBtn = nullptr;
 
     QLabel *m_statusLabel = nullptr;
-    QCheckBox *m_logHttpCheck = nullptr;
+    QCheckBox *m_filterHttpCheck = nullptr;
     QToolButton *m_clearLogBtn = nullptr;
     QToolButton *m_toggleLogBtn = nullptr;
     QPlainTextEdit *m_logTextEdit = nullptr;
@@ -102,10 +110,23 @@ private:
 
     OnlineState m_onlineState = OnlineState::Unknown;
 
+    QTabWidget *m_detailTab = nullptr;
+
+    // 在线信息面板的字段 Label（每个字段一个 QLabel）
+    QLabel *m_infoAccountLabel    = nullptr;
+    QLabel *m_infoIpLabel         = nullptr;
+    QLabel *m_infoMacLabel        = nullptr;
+    QLabel *m_infoProductLabel    = nullptr;
+    QLabel *m_infoBillingLabel    = nullptr;
+    QLabel *m_infoUsedFlowLabel   = nullptr;
+    QLabel *m_infoUsedTimeLabel   = nullptr;
+    QLabel *m_infoBalanceLabel    = nullptr;
+    QLabel *m_infoDeviceTotalLabel= nullptr;
+
     // 固定窗口尺寸
     static constexpr int kWindowWidth           = 380;
     static constexpr int kWindowHeightExpanded  = 520;
-    static constexpr int kWindowHeightCollapsed = 300;
+    static constexpr int kWindowHeightCollapsed = 272;
 };
 
 #endif // MAINWINDOW_H

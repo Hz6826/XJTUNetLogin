@@ -314,7 +314,7 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
 
     // 1. 网络层错误（DNS 失败、超时、连接拒绝等）
     if (netErr != QNetworkReply::NoError) {
-        log("WARN", QString("外网不通: %1").arg(netErrStr));
+        // log("WARN", QString("外网不通: %1").arg(netErrStr));
         emit internetUnreachable(netErrStr);
         return;
     }
@@ -324,7 +324,7 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
     if (statusCode != 204) {
         const QString reason = QString("HTTP %1（可能被 captive portal 劫持）")
                                     .arg(statusCode);
-        log("WARN", "外网异常: " + reason);
+        // log("WARN", "外网异常: " + reason);
         emit internetUnreachable(reason);
         return;
     }
