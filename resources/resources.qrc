@@ -9,5 +9,12 @@
         <file>icons/light/chevron-down.svg</file>
         <file>icons/light/chevron-up.svg</file>
         <file>icons/light/folder.svg</file>
+
+        <file>icons/app/app-16.png</file>
+        <file>icons/app/app-32.png</file>
+        <file>icons/app/app-48.png</file>
+        <file>icons/app/app-64.png</file>
+        <file>icons/app/app-128.png</file>
+        <file>icons/app/app-256.png</file>
     </qresource>
 </RCC>

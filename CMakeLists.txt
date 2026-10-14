@@ -32,7 +32,7 @@ qt_add_executable(XJTUNetLogin
         src/net/SrunClient.cpp
         src/config/Config.cpp
         src/ui/MainWindow.cpp
-        src/ui/MainWindow.h
+        src/ui/TrayController.cpp
         resources/resources.qrc
         # 后续逐步加入：
         # src/app/Application.cpp
@@ -40,6 +40,12 @@ qt_add_executable(XJTUNetLogin
         # src/core/AutoLoginService.cpp
         # src/platform/WindowsPlatformHelper.cpp
 )
+
+if (WIN32)
+    target_sources(XJTUNetLogin PRIVATE
+            resources/windows/app.rc
+    )
+endif()
 
 # 让源文件可以用 "net/SrunClient.h" 这种相对路径 include
 target_include_directories(XJTUNetLogin PRIVATE

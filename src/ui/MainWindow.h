@@ -26,14 +26,17 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(SrunClient *client, QWidget *parent = nullptr);
     bool eventFilter(QObject *obj, QEvent *event) override;
+    void setForceQuit(bool force);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
 
+public slots:
+    void onAuthClicked();
+
 private slots:
     void onToggleLogClicked();
-    void onAuthClicked();
     void onPingClicked();
     void onSaveConfigClicked();
     void onClearLogClicked();
@@ -93,6 +96,7 @@ private:
     QDate m_logFileDate;
     bool m_lastDarkTheme = true;
     OnlineState m_onlineState = OnlineState::Unknown;
+    bool m_forceQuit = false;
 
     // 图标
     QIcon m_iconChevronDown;
@@ -139,6 +143,9 @@ private:
     static constexpr int kWindowWidth           = 380;
     static constexpr int kWindowHeightExpanded  = 520;
     static constexpr int kWindowHeightCollapsed = 272;
+
+signals:
+    void onlineStateChanged(OnlineState state);
 };
 
 #endif // MAINWINDOW_H

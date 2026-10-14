@@ -39,6 +39,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <QClipboard>
+#include <QSystemTrayIcon>
 
 namespace {
     bool isDarkTheme() {
@@ -67,6 +68,10 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_forceQuit || !QSystemTrayIcon::isSystemTrayAvailable()) {
+        event->accept();
+        return;
+    }
     event->ignore();
     hide();
 }
@@ -109,6 +114,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
         }
     }
     return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::setForceQuit(bool force) {
+    m_forceQuit = force;
 }
 
 void MainWindow::logWelcome() {
@@ -285,12 +294,14 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
     m_clearLogBtn->setAutoRaise(true);
     m_clearLogBtn->setToolTip("清空日志");
     m_clearLogBtn->setIcon(m_iconTrash);
+    m_clearLogBtn->installEventFilter(this);
     toolRow->addWidget(m_clearLogBtn);
 
     m_openLogDirBtn = new QToolButton;
     m_openLogDirBtn->setAutoRaise(true);
     m_openLogDirBtn->setToolTip("打开日志目录");
     m_openLogDirBtn->setIcon(m_iconFolder);   // 需要新图标
+    m_clearLogBtn->installEventFilter(this);
     toolRow->addWidget(m_openLogDirBtn);
 
     layout->addLayout(toolRow);
@@ -578,6 +589,7 @@ void MainWindow::applyOnlineInfo(const QJsonObject &info) {
 void MainWindow::setOnlineState(OnlineState s) {
     m_onlineState = s;
     updateUiForState();
+    emit onlineStateChanged(s);
 }
 
 void MainWindow::updateUiForState() {
