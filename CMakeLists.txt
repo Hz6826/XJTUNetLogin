@@ -56,44 +56,19 @@ target_link_libraries(XJTUNetLogin PRIVATE
 )
 
 # ---------- Windows 开发时拷贝 Qt 运行时 DLL ----------
-if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(DEBUG_SUFFIX)
-    if (MSVC AND CMAKE_BUILD_TYPE MATCHES "Debug")
-        set(DEBUG_SUFFIX "d")
-    endif ()
+if (WIN32)
+    find_program(WINDEPLOYQT_EXE windeployqt
+            HINTS "${QT_INSTALL_PATH}/bin")
 
-    set(QT_INSTALL_PATH "${CMAKE_PREFIX_PATH}")
-    if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
-        set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
-        if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
-            set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
-        endif ()
-    endif ()
-
-    if (EXISTS "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll")
+    if (WINDEPLOYQT_EXE)
         add_custom_command(TARGET XJTUNetLogin POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/platforms/")
-        add_custom_command(TARGET XJTUNetLogin POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy
-                "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/platforms/")
-    endif ()
-
-    foreach (QT_LIB Core Gui Widgets Network Svg)
-        add_custom_command(TARGET XJTUNetLogin POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy
-                "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:XJTUNetLogin>")
-    endforeach ()
-
-    if (EXISTS "${QT_INSTALL_PATH}/plugins/imageformats/qsvg${DEBUG_SUFFIX}.dll")
-        add_custom_command(TARGET XJTUNetLogin POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/imageformats/")
-        add_custom_command(TARGET XJTUNetLogin POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy
-                "${QT_INSTALL_PATH}/plugins/imageformats/qsvg${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:XJTUNetLogin>/plugins/imageformats/")
+                COMMAND "${WINDEPLOYQT_EXE}"
+                --no-translations
+                --no-system-d3d-compiler
+                --no-opengl-sw
+                "$<TARGET_FILE:XJTUNetLogin>"
+                COMMENT "Running windeployqt to copy Qt runtime")
+    else ()
+        message(WARNING "windeployqt not found, runtime DLLs may not be copied")
     endif ()
 endif ()
