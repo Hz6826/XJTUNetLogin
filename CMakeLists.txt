@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(XJTUNetLogin VERSION 0.3.0 LANGUAGES CXX)
+project(XJTUNetLogin VERSION 0.4.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,8 +35,6 @@ qt_add_executable(XJTUNetLogin
         src/ui/TrayController.cpp
         resources/resources.qrc
         # 后续逐步加入：
-        # src/app/Application.cpp
-        # src/app/TrayController.cpp
         # src/core/AutoLoginService.cpp
         # src/platform/WindowsPlatformHelper.cpp
 )
