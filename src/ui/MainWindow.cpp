@@ -478,7 +478,18 @@ void MainWindow::updateUiForState() {
     m_authBtn->setEnabled(editable2);
     m_saveBtn->setEnabled(editable2);
 
-    m_authBtn->setText(m_onlineState == OnlineState::Online ? "注销": "登录");
+    // 按状态切换按钮文案和配色
+    QPalette pal = m_authBtn->palette();
+    if (m_onlineState == OnlineState::Online) {
+        m_authBtn->setText("注销");
+        pal.setColor(QPalette::ButtonText, QColor(0xF4, 0x47, 0x47));  // 红
+        pal.setColor(QPalette::Text,       QColor(0xF4, 0x47, 0x47));  // fallback
+    } else {
+        m_authBtn->setText("登录");
+        pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6));  // 蓝
+        pal.setColor(QPalette::Text,       QColor(0x56, 0x9C, 0xD6));  // fallback
+    }
+    m_authBtn->setPalette(pal);
 }
 
 void MainWindow::updateOnlineInfoPanel(const QJsonObject &info) {
