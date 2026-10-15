@@ -7,6 +7,7 @@
 #include "MainWindow.h"
 #include "net/SrunClient.h"
 #include "AppInfo.h"
+#include "platform/AutoStart.h"
 
 #include <QCheckBox>
 // ReSharper disable once CppUnusedIncludeDirective
@@ -50,7 +51,7 @@ namespace {
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     : QMainWindow(parent)
-    , m_client(client) {
+      , m_client(client) {
     m_config = Config::load();
 
     loadIcons();
@@ -122,13 +123,13 @@ void MainWindow::setForceQuit(bool force) {
 
 void MainWindow::logWelcome() {
     appendLog("SUCCESS", QString("启动成功！欢迎来到%1(%2) by %3")
-        .arg(AppInfo::Description, AppInfo::Name, AppInfo::Author));
+              .arg(AppInfo::Description, AppInfo::Name, AppInfo::Author));
     // appendLog("INFO", "{彩蛋TIP的占位符}");  // TODO
     appendLog("INFO", QString("当前版本: v%1").arg(AppInfo::Version));
     // TODO 检查版本
     appendLog("INFO", QString("项目地址: %1").arg(AppInfo::RepoUrl));
     appendLog("INFO", QString("本项目以%1开源，完全免费！如果你认为该软件帮助到了你，"
-                              "麻烦在GitHub点个Star，或将软件分享给朋友，你的支持是我继续创作的动力~").arg(AppInfo::License));
+                  "麻烦在GitHub点个Star，或将软件分享给朋友，你的支持是我继续创作的动力~").arg(AppInfo::License));
 }
 
 void MainWindow::writeLogToFile(const QString &level, const QString &msg) {
@@ -136,10 +137,10 @@ void MainWindow::writeLogToFile(const QString &level, const QString &msg) {
     if (!m_logFile.isOpen()) return;
 
     const QString ts = QDateTime::currentDateTime()
-                           .toString("yyyy-MM-dd HH:mm:ss.zzz");
+            .toString("yyyy-MM-dd HH:mm:ss.zzz");
     const QString line = QString("[%1] [%2] %3\n").arg(ts, level, msg);
     m_logFile.write(line.toUtf8());
-    m_logFile.flush();     // 关键：防止崩溃/异常退出丢日志
+    m_logFile.flush(); // 关键：防止崩溃/异常退出丢日志
 }
 
 void MainWindow::ensureLogFileForToday() {
@@ -154,11 +155,11 @@ void MainWindow::ensureLogFileForToday() {
         return;
     }
     const QString fullPath = QString("%1/xjtu-netlogin-%2.log")
-    .arg(dir, today.toString("yyyyMMdd"));
+            .arg(dir, today.toString("yyyyMMdd"));
     m_logFile.setFileName(fullPath);
     if (!m_logFile.open(QIODevice::Append | QIODevice::Text)) {
         qWarning() << "无法打开日志文件:" << fullPath
-                   << "错误:" << m_logFile.errorString();
+                << "错误:" << m_logFile.errorString();
         return;
     }
 
@@ -174,9 +175,9 @@ void MainWindow::loadIcons() {
                             ? ":/icons/dark"
                             : ":/icons/light";
     m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
-    m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
-    m_iconTrash       = QIcon(dir + "/trash-2.svg");
-    m_iconFolder      = QIcon(dir + "/folder.svg");
+    m_iconChevronUp = QIcon(dir + "/chevron-up.svg");
+    m_iconTrash = QIcon(dir + "/trash-2.svg");
+    m_iconFolder = QIcon(dir + "/folder.svg");
 }
 
 void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
@@ -243,7 +244,7 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
 
 void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     auto *buttonRow = new QHBoxLayout;
-    m_authBtn = new QPushButton("登录");  // 或注销，合并为一个按钮
+    m_authBtn = new QPushButton("登录"); // 或注销，合并为一个按钮
     buttonRow->addWidget(m_authBtn, 1);
     m_pingBtn = new QPushButton("测试连接");
     buttonRow->addWidget(m_pingBtn, 1);
@@ -300,7 +301,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
     m_openLogDirBtn = new QToolButton;
     m_openLogDirBtn->setAutoRaise(true);
     m_openLogDirBtn->setToolTip("打开日志目录");
-    m_openLogDirBtn->setIcon(m_iconFolder);   // 需要新图标
+    m_openLogDirBtn->setIcon(m_iconFolder); // 需要新图标
     m_clearLogBtn->installEventFilter(this);
     toolRow->addWidget(m_openLogDirBtn);
 
@@ -333,14 +334,14 @@ void MainWindow::buildUiInfoPanel(QWidget *parent) {
         return l;
     };
 
-    m_infoAccountLabel     = makeValueLabel();
-    m_infoIpLabel          = makeValueLabel();
-    m_infoMacLabel         = makeValueLabel();
-    m_infoProductLabel     = makeValueLabel();
-    m_infoBillingLabel     = makeValueLabel();
-    m_infoUsedFlowLabel    = makeValueLabel();
-    m_infoUsedTimeLabel    = makeValueLabel();
-    m_infoBalanceLabel     = makeValueLabel();
+    m_infoAccountLabel = makeValueLabel();
+    m_infoIpLabel = makeValueLabel();
+    m_infoMacLabel = makeValueLabel();
+    m_infoProductLabel = makeValueLabel();
+    m_infoBillingLabel = makeValueLabel();
+    m_infoUsedFlowLabel = makeValueLabel();
+    m_infoUsedTimeLabel = makeValueLabel();
+    m_infoBalanceLabel = makeValueLabel();
     m_infoDeviceTotalLabel = makeValueLabel();
 
     m_infoUsedFlowLabel->installEventFilter(this);
@@ -349,14 +350,14 @@ void MainWindow::buildUiInfoPanel(QWidget *parent) {
 
     m_infoDeviceTotalLabel->setCursor(Qt::WhatsThisCursor);
 
-    form->addRow("账号",     m_infoAccountLabel);
-    form->addRow("IP",       m_infoIpLabel);
-    form->addRow("MAC",      m_infoMacLabel);
-    form->addRow("产品",     m_infoProductLabel);
+    form->addRow("账号", m_infoAccountLabel);
+    form->addRow("IP", m_infoIpLabel);
+    form->addRow("MAC", m_infoMacLabel);
+    form->addRow("产品", m_infoProductLabel);
     form->addRow("计费策略", m_infoBillingLabel);
     form->addRow("已用流量", m_infoUsedFlowLabel);
     form->addRow("已用时长", m_infoUsedTimeLabel);
-    form->addRow("余额",     m_infoBalanceLabel);
+    form->addRow("余额", m_infoBalanceLabel);
     form->addRow("在线设备", m_infoDeviceTotalLabel);
 }
 
@@ -380,8 +381,8 @@ void MainWindow::onToggleLogClicked() {
 void MainWindow::onAuthClicked() {
     m_config.username = m_usernameEdit->text();
     m_config.password = m_passwordEdit->text();
-    m_config.acId     = m_acIdEdit->text();
-    m_config.domain   = m_domainEdit->text();
+    m_config.acId = m_acIdEdit->text();
+    m_config.domain = m_domainEdit->text();
 
     if (m_onlineState == OnlineState::Offline || m_onlineState == OnlineState::Unknown) {
         appendLog("STEP", "用户点击登录");
@@ -395,7 +396,8 @@ void MainWindow::onAuthClicked() {
         }
         setOnlineState(OnlineState::Busy);
         m_client->logout(m_config.username, m_config.acId, m_config.domain);
-    } else {  // Busy
+    } else {
+        // Busy
         appendLog("WARN", "当前后台正在进行其它请求，请稍后再试！");
     }
 }
@@ -508,7 +510,7 @@ void MainWindow::appendLog(const QString &level, const QString &msg) {
     writeLogToFile(level, msg);
 
     if (m_config.filterHttpLog && level == "HTTP") {
-        return;   // 直接丢弃，不写入
+        return; // 直接丢弃，不写入
     }
 
     QColor color;
@@ -547,7 +549,7 @@ void MainWindow::loadConfigToUi() {
     m_acIdEdit->setText(m_config.acId);
     m_domainEdit->setText(m_config.domain);
 
-    m_autoStartCheck->setChecked(m_config.autoStart);
+    m_autoStartCheck->setChecked(AutoStart::isEnabled());
     m_autoLoginCheck->setChecked(m_config.autoLogin);
     m_ssidEdit->setText(m_config.ssid);
 
@@ -556,13 +558,13 @@ void MainWindow::loadConfigToUi() {
 }
 
 bool MainWindow::saveConfigSilently() {
-    m_config.username  = m_usernameEdit->text();
-    m_config.password  = m_passwordEdit->text();
-    m_config.acId      = m_acIdEdit->text();
-    m_config.domain    = m_domainEdit->text();
+    m_config.username = m_usernameEdit->text();
+    m_config.password = m_passwordEdit->text();
+    m_config.acId = m_acIdEdit->text();
+    m_config.domain = m_domainEdit->text();
     m_config.autoStart = m_autoStartCheck->isChecked();
     m_config.autoLogin = m_autoLoginCheck->isChecked();
-    m_config.ssid      = m_ssidEdit->text();
+    m_config.ssid = m_ssidEdit->text();
 
     m_config.filterHttpLog = m_filterHttpCheck->isChecked();
     m_config.currentTab = m_detailTab->currentIndex();
@@ -572,7 +574,7 @@ bool MainWindow::saveConfigSilently() {
 
 void MainWindow::applyOnlineInfo(const QJsonObject &info) {
     const QString username = info.value("user_name").toString();
-    const QString domain   = info.value("domain").toString();
+    const QString domain = info.value("domain").toString();
     const QString domainWithAt = domain.isEmpty() ? QString() : ("@" + domain);
 
     if (!username.isEmpty()) {
@@ -607,12 +609,12 @@ void MainWindow::updateUiForState() {
     QPalette pal = m_authBtn->palette();
     if (m_onlineState == OnlineState::Online) {
         m_authBtn->setText("注销");
-        pal.setColor(QPalette::ButtonText, QColor(0xF4, 0x47, 0x47));  // 红
-        pal.setColor(QPalette::Text,       QColor(0xF4, 0x47, 0x47));  // fallback
+        pal.setColor(QPalette::ButtonText, QColor(0xF4, 0x47, 0x47)); // 红
+        pal.setColor(QPalette::Text, QColor(0xF4, 0x47, 0x47)); // fallback
     } else {
         m_authBtn->setText("登录");
-        pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6));  // 蓝
-        pal.setColor(QPalette::Text,       QColor(0x56, 0x9C, 0xD6));  // fallback
+        pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6)); // 蓝
+        pal.setColor(QPalette::Text, QColor(0x56, 0x9C, 0xD6)); // fallback
     }
     m_authBtn->setPalette(pal);
 }
@@ -622,8 +624,8 @@ void MainWindow::updateOnlineInfoPanel(const QJsonObject &info) {
     const QString user = info.value("user_name").toString();
     const QString domain = info.value("domain").toString();
     const QString account = user.isEmpty()
-        ? "-"
-        : (domain.isEmpty() ? user : user + "@" + domain);
+                                ? "-"
+                                : (domain.isEmpty() ? user : user + "@" + domain);
     m_infoAccountLabel->setText(account);
 
     // 直接读的字段
@@ -638,10 +640,10 @@ void MainWindow::updateOnlineInfoPanel(const QJsonObject &info) {
     m_infoBillingLabel->setText(textOrDash(info.value("billing_name")));
 
     // 数值字段：统一走 toVariant()，兼容字符串和数字两种类型
-    const qint64 sumBytes    = info.value("sum_bytes").toVariant().toLongLong();
-    const qint64 sumSeconds  = info.value("sum_seconds").toVariant().toLongLong();
-    const double balance     = info.value("user_balance").toVariant().toDouble();
-    const int    deviceTotal = info.value("online_device_total").toVariant().toInt();
+    const qint64 sumBytes = info.value("sum_bytes").toVariant().toLongLong();
+    const qint64 sumSeconds = info.value("sum_seconds").toVariant().toLongLong();
+    const double balance = info.value("user_balance").toVariant().toDouble();
+    const int deviceTotal = info.value("online_device_total").toVariant().toInt();
 
     m_infoUsedFlowLabel->setText(formatBytes(sumBytes));
     m_infoUsedFlowLabel->setProperty("customTooltip",
@@ -666,9 +668,9 @@ void MainWindow::updateOnlineInfoPanel(const QJsonObject &info) {
             int idx = 1;
             for (auto it = devices.constBegin(); it != devices.constEnd(); ++it, ++idx) {
                 const QJsonObject dev = it.value().toObject();
-                const QString os  = dev.value("os_name").toString();
+                const QString os = dev.value("os_name").toString();
                 const QString cls = dev.value("class_name").toString();
-                const QString ip  = dev.value("ip").toString();
+                const QString ip = dev.value("ip").toString();
                 lines << QString("%1. %2 (%3)").arg(idx).arg(os, cls);
                 lines << QString("    IP: %1").arg(ip);
             }
@@ -727,47 +729,55 @@ void MainWindow::connectSignals() {
 
     // UI 按钮 → 自己的槽
     connect(m_toggleLogBtn, &QToolButton::clicked,
-        this, &MainWindow::onToggleLogClicked);
+            this, &MainWindow::onToggleLogClicked);
     connect(m_authBtn, &QPushButton::clicked,
-        this, &MainWindow::onAuthClicked);
+            this, &MainWindow::onAuthClicked);
     connect(m_pingBtn, &QPushButton::clicked,
-        this, &MainWindow::onPingClicked);
+            this, &MainWindow::onPingClicked);
     connect(m_saveBtn, &QPushButton::clicked,
-        this, &MainWindow::onSaveConfigClicked);
+            this, &MainWindow::onSaveConfigClicked);
     connect(m_clearLogBtn, &QToolButton::clicked,
-        this, &MainWindow::onClearLogClicked);
+            this, &MainWindow::onClearLogClicked);
     connect(m_filterHttpCheck, &QCheckBox::toggled,
-        this, [this] { saveConfigSilently(); });
+            this, [this] { saveConfigSilently(); });
     connect(m_detailTab, &QTabWidget::currentChanged,
-        this, [this] { saveConfigSilently(); });
+            this, [this] { saveConfigSilently(); });
     connect(m_openLogDirBtn, &QToolButton::clicked,
-        this, &MainWindow::onOpenLogDirClicked);
+            this, &MainWindow::onOpenLogDirClicked);
 
     // SrunClient 信号 → 自己的槽
     connect(m_client, &SrunClient::logMessage,
-        this, &MainWindow::onLogMessage);
+            this, &MainWindow::onLogMessage);
     connect(m_client, &SrunClient::stageChanged,
-        this, &MainWindow::onStageChanged);
+            this, &MainWindow::onStageChanged);
     connect(m_client, &SrunClient::loginSucceeded,
-        this, &MainWindow::onLoginSucceeded);
+            this, &MainWindow::onLoginSucceeded);
     connect(m_client, &SrunClient::loginFailed,
-        this, &MainWindow::onLoginFailed);
+            this, &MainWindow::onLoginFailed);
     connect(m_client, &SrunClient::logoutSucceeded,
-        this, &MainWindow::onLogoutSucceeded);
+            this, &MainWindow::onLogoutSucceeded);
     connect(m_client, &SrunClient::logoutFailed,
-        this, &MainWindow::onLogoutFailed);
+            this, &MainWindow::onLogoutFailed);
     connect(m_client, &SrunClient::onlineStatusRefreshed,
-        this, &MainWindow::onOnlineStatusRefreshed);
+            this, &MainWindow::onOnlineStatusRefreshed);
     connect(m_client, &SrunClient::internetReachable,
-        this, &MainWindow::onInternetReachable);
+            this, &MainWindow::onInternetReachable);
     connect(m_client, &SrunClient::internetUnreachable,
-        this, &MainWindow::onInternetUnreachable);
+            this, &MainWindow::onInternetUnreachable);
 
     // 自动登录组的自动保存
-    connect(m_autoStartCheck, &QCheckBox::toggled,
-        this, [this] { saveConfigSilently(); });
+    connect(m_autoStartCheck, &QCheckBox::toggled, this, [this](bool on) {
+        const bool ok = AutoStart::setEnabled(on);
+        saveConfigSilently();        // 无论成败都同步 Config（保持缓存一致）
+        if (ok) {
+            appendLog("INFO", on ? "已启用开机自启" : "已取消开机自启");
+        }
+        else {
+            appendLog("ERROR", "开机自启设置失败，可能被安全软件阻止");
+        }
+    });
     connect(m_autoLoginCheck, &QCheckBox::toggled,
-        this, [this] { saveConfigSilently(); });
+            this, [this] { saveConfigSilently(); });
     connect(m_ssidEdit, &QLineEdit::editingFinished,
-        this, [this] { saveConfigSilently(); });
+            this, [this] { saveConfigSilently(); });
 }
