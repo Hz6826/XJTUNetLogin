@@ -76,4 +76,6 @@ _注：两个版本文件并无差异，若主程序同目录下含有`config.js
 
 ## Star History
 
+_如果觉得这个项目对你有帮助的话，麻烦点一下右上角的Star，你的支持是我最大的动力，谢谢喵~_
 
+[![Star History Chart](https://api.star-history.com/svg?repos=Hz6826/XJTUNetLogin&type=Date)](https://www.star-history.com/#HyperNavBar/HyperNavBar&Date)
