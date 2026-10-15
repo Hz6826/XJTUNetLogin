@@ -33,7 +33,7 @@
 
 ## 运行
 
-请在[Releases](https://github.com/Hz6826/XJTUNetLogin/releases)界面获取最新版本，其中可执行程序为 **Inno Setup** 打包的安装版，名称包含`portal`的压缩包为便携版。
+请在 [Releases](https://github.com/Hz6826/XJTUNetLogin/releases) 界面获取最新版本，其中可执行程序为 **Inno Setup** 打包的安装版，名称包含`portal`的压缩包为便携版。
 
 **如果要使用开机自启功能，建议使用安装版！**
 
