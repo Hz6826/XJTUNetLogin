@@ -22,7 +22,6 @@
         <file>icons/tray/tray-online-16.png</file>
         <file>icons/tray/tray-online-32.png</file>
 
-<!--        <file>icons/full-icon.png</file>-->
-        <file>icons/full-icon-half.png</file>
+        <file>icons/app/full-icon-half.png</file>
     </qresource>
 </RCC>
