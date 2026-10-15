@@ -138,12 +138,14 @@ void SrunClient::onPeriodicPollFinished(QNetworkReply *reply)
     if (m_busy) return;
 
     if (netErr != QNetworkReply::NoError) {
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 
     bool ok = false;
     const QJsonObject obj = parseJsonOrJsonp(data, &ok);
     if (!ok) {
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 

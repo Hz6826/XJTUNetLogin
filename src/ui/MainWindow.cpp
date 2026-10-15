@@ -41,6 +41,9 @@
 #include <QUrl>
 #include <QClipboard>
 #include <QSystemTrayIcon>
+#include <QMessageBox>
+#include <QCheckBox>     // 应该已经有了
+#include <QAbstractButton>
 
 namespace {
     bool isDarkTheme() {
@@ -69,12 +72,66 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-    if (m_forceQuit || !QSystemTrayIcon::isSystemTrayAvailable()) {
+    // 强制退出（托盘菜单的"退出"）→ 直接关
+    if (m_forceQuit) {
         event->accept();
         return;
     }
-    event->ignore();
-    hide();
+
+    // 系统托盘不可用 → 直接关
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        event->accept();
+        return;
+    }
+
+    // 根据记忆的行为决定
+    switch (m_config.closeAction) {
+        case 1:  // 最小化到托盘
+            event->ignore();
+            hide();
+            return;
+        case 2:  // 退出程序
+            event->accept();
+            return;
+        default: // 0：每次询问
+            break;
+    }
+
+    // 询问用户
+    QMessageBox box(this);
+    box.setWindowTitle("关闭");
+    box.setIcon(QMessageBox::Question);
+    box.setText("你想退出程序还是最小化到托盘？");
+
+    const QPushButton *minBtn  = box.addButton("最小化到托盘", QMessageBox::AcceptRole);
+    box.addButton("退出程序", QMessageBox::RejectRole);  // *quitBtn
+    auto *rememberBox = new QCheckBox("记住我的选择");
+    box.setCheckBox(rememberBox);
+
+    box.exec();
+
+    QAbstractButton *clicked = box.clickedButton();
+
+    // 用户点了窗口右上角 X 关闭了对话框，什么都不做
+    if (!clicked) {
+        event->ignore();
+        return;
+    }
+
+    const bool remember = rememberBox->isChecked();
+    const int action = (clicked == minBtn) ? 1 : 2;
+
+    if (remember) {
+        m_config.closeAction = action;
+        saveConfigSilently();
+    }
+
+    if (action == 1) {
+        event->ignore();
+        hide();
+    } else {
+        event->accept();
+    }
 }
 
 void MainWindow::changeEvent(QEvent *event) {
@@ -166,7 +223,7 @@ void MainWindow::ensureLogFileForToday() {
     m_logFileDate = today;
 }
 
-QString MainWindow::logDirPath() const {
+QString MainWindow::logDirPath() {
     return Config::appDataDir() + "/logs";
 }
 

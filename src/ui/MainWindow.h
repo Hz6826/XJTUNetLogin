@@ -89,7 +89,8 @@ private:
 
     void writeLogToFile(const QString &level, const QString &msg);
     void ensureLogFileForToday();
-    QString logDirPath() const;
+
+    static QString logDirPath();
 
     void triggerAutoLogin();
 

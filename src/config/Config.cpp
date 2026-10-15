@@ -62,6 +62,7 @@ Config Config::fromJson(const QJsonObject &root) {
     c.logExpanded = uiCfg.value("logExpanded").toBool(true);
     c.filterHttpLog = uiCfg.value("filterHttpLog").toBool(true);
     c.currentTab = uiCfg.value("currentTab").toInt(0);
+    c.closeAction = uiCfg.value("closeAction").toInt(0);
 
     return c;
 }
@@ -81,6 +82,7 @@ QJsonObject Config::toJson() const {
     uiCfg["logExpanded"] = logExpanded;
     uiCfg["filterHttpLog"] = filterHttpLog;
     uiCfg["currentTab"] = currentTab;
+    uiCfg["closeAction"] = closeAction;
 
     QJsonObject root;
     root["auth"] = authCfg;
