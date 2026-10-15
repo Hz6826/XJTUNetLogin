@@ -72,8 +72,8 @@ void SrunClient::applyCommonHeaders(QNetworkRequest &req) {
     req.setRawHeader("Accept", "application/json, text/javascript, */*; q=0.01");
     req.setRawHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
     req.setRawHeader("X-Requested-With", "XMLHttpRequest");
-    req.setRawHeader("Referer", (kBaseUrl + QString("/srun_portal_pc")).toUtf8());
-    req.setRawHeader("Origin", kBaseUrl);
+    req.setRawHeader("Referer", (m_baseUrl + QString("/srun_portal_pc")).toUtf8());
+    req.setRawHeader("Origin", m_baseUrl.toUtf8());
 }
 
 QString SrunClient::previewBody(const QByteArray &data, int maxLen) {
@@ -119,7 +119,7 @@ void SrunClient::doPeriodicPoll()
 {
     if (m_busy) return;
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(kBaseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
@@ -203,7 +203,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
 void SrunClient::queryOnline(bool silent) {
     if (!silent) log("STEP", "→ 查询在线状态");
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(kBaseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
     if (!silent) log("HTTP", "GET " + fullUrl);
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
@@ -322,26 +322,41 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
-    // 1. 网络层错误（DNS 失败、超时、连接拒绝等）
+    // 网络层错误（DNS 失败、超时、连接拒绝等）
     if (netErr != QNetworkReply::NoError) {
-        // log("WARN", QString("外网不通: %1").arg(netErrStr));
         emit internetUnreachable(netErrStr);
         return;
     }
 
-    // 2. 状态码不是 204 —— 被 captive portal 劫持或异常
-    //    常见情况：200（登录页）/ 302（重定向到登录页）
-    if (statusCode != 204) {
-        const QString reason = QString("HTTP %1（可能被 captive portal 劫持）")
-                                    .arg(statusCode);
-        // log("WARN", "外网异常: " + reason);
-        emit internetUnreachable(reason);
+    // 204 = 真通畅
+    if (statusCode == 204) {
+        emit internetReachable();
         return;
     }
 
-    // 3. 状态码 204 —— 真通畅
-    // log("SUCCESS", "外网连通 ✓");  // 在MainWindow中实现了
-    emit internetReachable();
+    // 302 或 200：可能是 captive portal
+    const QByteArray locationRaw = reply->rawHeader("Location");
+    if (!locationRaw.isEmpty()) {
+        const QUrl locUrl = QUrl::fromEncoded(locationRaw);
+        if (locUrl.isValid() && !locUrl.host().isEmpty()) {
+            // 提取 scheme://host[:port]
+            QString newBase = locUrl.scheme() + "://" + locUrl.host();
+            if (locUrl.port() != -1 && locUrl.port() != 80) {
+                newBase += ":" + QString::number(locUrl.port());
+            }
+
+            if (newBase != m_baseUrl) {
+                m_baseUrl = newBase;
+                log("INFO", "检测到 captive portal，服务器地址更新为：" + m_baseUrl);
+            }
+            emit captivePortalDetected(m_baseUrl);
+            return;
+        }
+    }
+
+    // 其他非 204 且无可用 Location
+    const QString reason = QString("HTTP %1（可能被 captive portal 劫持）").arg(statusCode);
+    emit internetUnreachable(reason);
 }
 
 // ============================================================
@@ -358,7 +373,7 @@ void SrunClient::requestChallenge() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/get_challenge?%2")
-            .arg(kBaseUrl, buildQuery(params));
+            .arg(m_baseUrl, buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -454,7 +469,7 @@ void SrunClient::requestAuth() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(kBaseUrl, buildQuery(params));
+            .arg(m_baseUrl, buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -541,7 +556,7 @@ void SrunClient::requestLogout() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(kBaseUrl, buildQuery(params));
+            .arg(m_baseUrl, buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -627,7 +642,7 @@ void SrunClient::doPollStep() {
     log("STEP", QString("→ 第 %1/%2 次查询在线状态")
             .arg(m_pollCheckCount).arg(m_pollMaxChecks));
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(kBaseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
     log("HTTP", "GET " + fullUrl);
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};

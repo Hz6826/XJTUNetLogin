@@ -170,6 +170,20 @@ QString MainWindow::logDirPath() const {
     return Config::appDataDir() + "/logs";
 }
 
+void MainWindow::triggerAutoLogin() {
+    appendLog("STEP", "自动登录触发，尝试登录...");
+    m_pendingAutoLogin = true;
+
+    m_config.username = m_usernameEdit->text();
+    m_config.password = m_passwordEdit->text();
+    m_config.acId = m_acIdEdit->text();
+    m_config.domain = m_domainEdit->text();
+
+    setOnlineState(OnlineState::Busy);
+    m_client->login(m_config.username, m_config.password,
+                    m_config.acId, m_config.domain);
+}
+
 void MainWindow::loadIcons() {
     const QString dir = isDarkTheme()
                             ? ":/icons/dark"
@@ -241,6 +255,9 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
 void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     auto *buttonRow = new QHBoxLayout;
     m_authBtn = new QPushButton("登录"); // 或注销，合并为一个按钮
+    QPalette pal = m_authBtn->palette();
+    pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6)); // 蓝
+    pal.setColor(QPalette::Text, QColor(0x56, 0x9C, 0xD6)); // fallback
     buttonRow->addWidget(m_authBtn, 1);
     m_pingBtn = new QPushButton("测试连接");
     buttonRow->addWidget(m_pingBtn, 1);
@@ -460,8 +477,7 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     }
     if (m_pendingAutoLogin) {
         m_pendingAutoLogin = false;
-        m_autoLoginCheck->setChecked(false);
-        appendLog("ERROR", "自动登录失败，已取消勾选：" + msg);
+        appendLog("ERROR", "自动登录失败：" + msg);
     }
     setOnlineState(OnlineState::Offline);
 }
@@ -500,12 +516,21 @@ void MainWindow::onInternetUnreachable(const QString &reason) {
 }
 
 void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
+    if (m_onlineState == OnlineState::Busy) {
+        return;
+    }
+
     if (online) {
         applyOnlineInfo(info);
         setOnlineState(OnlineState::Online);
     } else {
         clearOnlineInfoPanel();
         setOnlineState(OnlineState::Offline);
+
+        if (m_autoLoginCheck->isChecked()) {
+            appendLog("STEP", "检测到离线，探测校园网认证需求...");
+            m_client->checkInternet();
+        }
     }
 }
 
@@ -514,18 +539,7 @@ void MainWindow::onAutoLoginToggled(bool on) {
     if (!on) return;
     if (m_onlineState == OnlineState::Offline ||
         m_onlineState == OnlineState::Unknown) {
-        appendLog("STEP", "自动登录已启用，尝试登录...");
-        m_pendingAutoLogin = true;
-
-        // 直接从输入框读值，不走 onAuthClicked（避免合并按钮的状态分派）
-        m_config.username = m_usernameEdit->text();
-        m_config.password = m_passwordEdit->text();
-        m_config.acId = m_acIdEdit->text();
-        m_config.domain = m_domainEdit->text();
-
-        setOnlineState(OnlineState::Busy);
-        m_client->login(m_config.username, m_config.password,
-                        m_config.acId, m_config.domain);
+        // triggerAutoLogin(); // ← 复用 // TODO
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("INFO", "已在线，无需自动登录");
     }
@@ -540,6 +554,15 @@ void MainWindow::onAutoStartToggled(bool on) {
     } else {
         appendLog("ERROR", "开机自启设置失败，可能被安全软件阻止");
     }
+}
+
+void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
+    appendLog("INFO", "检测到 captive portal：" + newBaseUrl);
+
+    if (!m_autoLoginCheck->isChecked()) return;
+    if (m_onlineState == OnlineState::Busy) return;
+
+    triggerAutoLogin();
 }
 
 void MainWindow::applyLogExpanded(bool expanded) {
@@ -811,4 +834,6 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onInternetReachable);
     connect(m_client, &SrunClient::internetUnreachable,
             this, &MainWindow::onInternetUnreachable);
+    connect(m_client, &SrunClient::captivePortalDetected,
+        this, &MainWindow::onCaptivePortalDetected);
 }

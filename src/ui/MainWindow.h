@@ -53,6 +53,7 @@ private slots:
     void onOnlineStatusRefreshed(bool online, const QJsonObject &info);
     void onAutoLoginToggled(bool on);
     void onAutoStartToggled(bool on);
+    void onCaptivePortalDetected(const QString &newBaseUrl);
 
 private:
     void loadIcons();
@@ -89,6 +90,8 @@ private:
     void writeLogToFile(const QString &level, const QString &msg);
     void ensureLogFileForToday();
     QString logDirPath() const;
+
+    void triggerAutoLogin();
 
     // 成员
     SrunClient *m_client = nullptr;

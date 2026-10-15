@@ -58,6 +58,8 @@ signals:
 
     void onlineStatusRefreshed(bool online, const QJsonObject &info);
 
+    void captivePortalDetected(const QString &newBaseUrl);
+
 private:
     // ---------- 内部异步步骤 ----------
     void requestChallenge();
@@ -84,9 +86,9 @@ private:
     // ---------- 辅助 ----------
     void log(const QString &level, const QString &msg);
     void setStage(const QString &stage);
+    void applyCommonHeaders(QNetworkRequest &req);
 
     static QJsonObject parseJsonOrJsonp(const QByteArray &data, bool *ok);
-    static void applyCommonHeaders(QNetworkRequest &req);
     static QString getUAHeader();
     static QString previewBody(const QByteArray &data, int maxLen = 200);
     static QString buildQuery(const QList<QPair<QString, QString>> &params);
@@ -119,7 +121,7 @@ private:
     bool m_busy = false;
 
     static constexpr int kPollIntervalMs = 1000;
-    static constexpr auto kBaseUrl = "http://10.6.21.2";
+    QString m_baseUrl = "http://10.6.21.2";
 };
 
 #endif // SRUNCLIENT_H
