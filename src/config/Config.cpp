@@ -63,6 +63,9 @@ Config Config::fromJson(const QJsonObject &root) {
     c.filterHttpLog = uiCfg.value("filterHttpLog").toBool(true);
     c.currentTab = uiCfg.value("currentTab").toInt(0);
     c.closeAction = uiCfg.value("closeAction").toInt(0);
+    c.windowGeometry = QByteArray::fromBase64(
+        uiCfg.value("windowGeometry").toString().toLatin1());
+    c.expandedWindowHeight = uiCfg.value("expandedWindowHeight").toInt(-1);
 
     return c;
 }
@@ -83,6 +86,9 @@ QJsonObject Config::toJson() const {
     uiCfg["filterHttpLog"] = filterHttpLog;
     uiCfg["currentTab"] = currentTab;
     uiCfg["closeAction"] = closeAction;
+    uiCfg["windowGeometry"] = QString::fromLatin1(
+        windowGeometry.toBase64());
+    uiCfg["expandedWindowHeight"] = expandedWindowHeight;
 
     QJsonObject root;
     root["auth"] = authCfg;

@@ -9,6 +9,7 @@
 #include "AppInfo.h"
 #include "platform/AutoStart.h"
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include <QCheckBox>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QCloseEvent>
@@ -68,18 +69,24 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     logWelcome();
     m_client->checkInternet();
 
+    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+    if (!m_config.windowGeometry.isEmpty()) {
+        restoreGeometry(m_config.windowGeometry);
+    }
     setWindowTitle(QString("%1 v.%2 by %3").arg(AppInfo::Description, AppInfo::Version, AppInfo::Author));
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     // 强制退出（托盘菜单的"退出"）→ 直接关
     if (m_forceQuit) {
+        saveWindowGeometryToConfig();
         event->accept();
         return;
     }
 
     // 系统托盘不可用 → 直接关
     if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        saveWindowGeometryToConfig();
         event->accept();
         return;
     }
@@ -91,6 +98,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
             hide();
             return;
         case 2:  // 退出程序
+            saveWindowGeometryToConfig();
             event->accept();
             return;
         default: // 0：每次询问
@@ -130,6 +138,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
         hide();
     } else {
+        saveWindowGeometryToConfig();
         event->accept();
     }
 }
@@ -150,6 +159,22 @@ void MainWindow::changeEvent(QEvent *event) {
         }
     }
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+
+    if (m_firstShowDone) return;
+    m_firstShowDone = true;
+
+    // 启动时如果 config 里是收起态，需要现在真正缩一次
+    if (!m_config.logExpanded) {
+        // 延到下一轮事件循环，让布局先跑完
+        QTimer::singleShot(0, this, [this] {
+            resizeForLogState(false);
+        });
+    }
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
@@ -241,6 +266,25 @@ void MainWindow::triggerAutoLogin() {
                     m_config.acId, m_config.domain);
 }
 
+void MainWindow::saveWindowGeometryToConfig()
+{
+    if (m_detailTab->isVisible()) {
+        // 展开态：当前高度就是展开高度
+        m_config.expandedWindowHeight = height();
+    } else {
+        // 收起态：临时展开，让 saveGeometry 拿到"正常"几何
+        setMinimumHeight(0);
+        setMaximumHeight(QWIDGETSIZE_MAX);
+        const int targetH = m_expandedWindowHeight > 0
+                                ? m_expandedWindowHeight
+                                : sizeHint().height();
+        resize(width(), targetH);
+    }
+
+    m_config.windowGeometry = saveGeometry();
+    saveConfigSilently();
+}
+
 void MainWindow::loadIcons() {
     const QString dir = isDarkTheme()
                             ? ":/icons/dark"
@@ -291,7 +335,27 @@ void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
     form->setColumnStretch(1, 1);
     form->setColumnStretch(3, 1);
 
+    authGroup->setFixedHeight(kAuthFormHeight);
     mainLayout->addWidget(authGroup);
+}
+
+void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
+    auto *buttonRowWrapper = new QWidget;
+    auto *buttonRow = new QHBoxLayout(buttonRowWrapper);
+    buttonRow->setContentsMargins(0, 0, 0, 0);
+    m_authBtn = new QPushButton("登录"); // 或注销，合并为一个按钮
+    QPalette pal = m_authBtn->palette();
+    pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6)); // 蓝
+    pal.setColor(QPalette::Text, QColor(0x56, 0x9C, 0xD6)); // fallback
+    buttonRow->addWidget(m_authBtn, 1);
+    m_pingBtn = new QPushButton("测试连接");
+    buttonRow->addWidget(m_pingBtn, 1);
+    m_saveBtn = new QPushButton("保存账户信息");
+    m_saveBtn->setToolTip("登录成功时自动保存配置");
+    buttonRow->addWidget(m_saveBtn, 1);
+
+    buttonRowWrapper->setFixedHeight(kOpBtnRowHeight);
+    mainLayout->addWidget(buttonRowWrapper);
 }
 
 void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
@@ -309,25 +373,12 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
     mainLayout->addWidget(autoGroup);
 }
 
-void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
-    auto *buttonRow = new QHBoxLayout;
-    m_authBtn = new QPushButton("登录"); // 或注销，合并为一个按钮
-    QPalette pal = m_authBtn->palette();
-    pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6)); // 蓝
-    pal.setColor(QPalette::Text, QColor(0x56, 0x9C, 0xD6)); // fallback
-    buttonRow->addWidget(m_authBtn, 1);
-    m_pingBtn = new QPushButton("测试连接");
-    buttonRow->addWidget(m_pingBtn, 1);
-    m_saveBtn = new QPushButton("保存账户信息");
-    m_saveBtn->setToolTip("登录成功时自动保存配置");
-    buttonRow->addWidget(m_saveBtn, 1);
-
-    mainLayout->addLayout(buttonRow);
-}
-
 void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
-    auto *statusRow = new QHBoxLayout;
+    auto *statusRowWrapper = new QWidget;
+    auto *statusRow = new QHBoxLayout(statusRowWrapper);
+    statusRow->setContentsMargins(0, 0, 0, 0);
     m_statusLabel = new QLabel("空闲");
+    m_statusLabel->setAlignment(Qt::AlignVCenter);
     statusRow->addWidget(m_statusLabel);
     statusRow->addStretch();
 
@@ -336,7 +387,8 @@ void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
     m_toggleLogBtn->installEventFilter(this);
     statusRow->addWidget(m_toggleLogBtn);
 
-    mainLayout->addLayout(statusRow);
+    statusRowWrapper->setFixedHeight(kStatusRowHeight);
+    mainLayout->addWidget(statusRowWrapper);
 
     m_detailTab = new QTabWidget;
 
@@ -347,6 +399,14 @@ void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
     auto *infoPage = new QWidget;
     buildUiInfoPanel(infoPage);
     m_detailTab->addTab(infoPage, "在线信息");
+
+    auto *settingsPage = new QWidget;
+    buildUiSettingsPanel(settingsPage);
+    m_detailTab->addTab(settingsPage, "设置");
+
+    auto *aboutPage = new QWidget;
+    buildUiAboutPanel(aboutPage);
+    m_detailTab->addTab(aboutPage, "关于");
 
     mainLayout->addWidget(m_detailTab, 1);
 }
@@ -371,7 +431,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
     m_openLogDirBtn = new QToolButton;
     m_openLogDirBtn->setAutoRaise(true);
     m_openLogDirBtn->setToolTip("打开日志目录");
-    m_openLogDirBtn->setIcon(m_iconFolder); // 需要新图标
+    m_openLogDirBtn->setIcon(m_iconFolder);
     m_clearLogBtn->installEventFilter(this);
     toolRow->addWidget(m_openLogDirBtn);
 
@@ -431,16 +491,27 @@ void MainWindow::buildUiInfoPanel(QWidget *parent) {
     form->addRow("在线设备", m_infoDeviceTotalLabel);
 }
 
+void MainWindow::buildUiSettingsPanel(QWidget *parent) {
+    auto *uiSettingsLayout = new QVBoxLayout(parent);
+    buildUiAutoLogin(uiSettingsLayout);
+}
+
+void MainWindow::buildUiAboutPanel(QWidget *parent) {
+
+}
+
 void MainWindow::buildUi() {
     auto *central = new QWidget;
     auto *mainLayout = new QVBoxLayout(central);
 
     buildUiAuthForm(mainLayout);
-    buildUiAutoLogin(mainLayout);
     buildUiOpBtnRow(mainLayout);
+
     buildUiInfoArea(mainLayout);
 
     setCentralWidget(central);
+    setMinimumWidth(kWindowMinWidth);
+    setMinimumHeight(kWindowMinHeight);
 }
 
 void MainWindow::onToggleLogClicked() {
@@ -622,12 +693,52 @@ void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
     triggerAutoLogin();
 }
 
-void MainWindow::applyLogExpanded(bool expanded) {
+void MainWindow::applyLogExpanded(bool expanded)
+{
+    const bool wasExpanded = m_detailTab->isVisible();
+    if (wasExpanded == expanded) return;
+
     m_detailTab->setVisible(expanded);
-    m_toggleLogBtn->setIcon(expanded ? m_iconChevronUp : m_iconChevronDown);
-    m_toggleLogBtn->setToolTip(expanded ? "收起日志区" : "展开日志区");
-    setFixedSize(kWindowWidth,
-                 expanded ? kWindowHeightExpanded : kWindowHeightCollapsed);
+    if (expanded) {
+        m_toggleLogBtn->setIcon(m_iconChevronUp);
+        m_toggleLogBtn->setToolTip("简洁");
+    } else {
+        m_toggleLogBtn->setIcon(m_iconChevronDown);
+        m_toggleLogBtn->setToolTip("更多");
+    }
+
+    resizeForLogState(expanded);
+}
+
+void MainWindow::resizeForLogState(bool expanded)
+{
+    if (!isVisible() || isMaximized() || isFullScreen()) return;
+
+    const int w = width();
+
+    if (expanded) {
+        setMinimumHeight(kWindowMinHeight);
+        setMaximumHeight(QWIDGETSIZE_MAX);
+
+        resize(w, m_expandedWindowHeight > 0
+                     ? m_expandedWindowHeight
+                     : sizeHint().height());
+    } else {
+        m_expandedWindowHeight = height();   // 记住"展开时的高度"
+
+        setMinimumHeight(0);
+        setMaximumHeight(QWIDGETSIZE_MAX);
+
+        if (auto *cw = centralWidget()) {
+            cw->updateGeometry();
+            if (cw->layout()) cw->layout()->activate();
+        }
+        updateGeometry();
+
+        const int h = sizeHint().height();
+        resize(w, h);
+        setFixedHeight(h);
+    }
 }
 
 void MainWindow::appendLog(const QString &level, const QString &msg) {

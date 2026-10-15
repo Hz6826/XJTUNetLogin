@@ -25,6 +25,8 @@ struct Config {
     int currentTab = 0;
     // 关闭行为：0=每次询问, 1=最小化到托盘, 2=退出程序
     int closeAction = 0;
+    QByteArray windowGeometry;
+    int expandedWindowHeight = -1;
 
     static QString appDataDir();
 

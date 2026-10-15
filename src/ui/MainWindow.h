@@ -31,6 +31,7 @@ public:
 protected:
     void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 public slots:
     void onAuthClicked();
@@ -65,6 +66,8 @@ private:
 
     void buildUiLogPanel(QWidget *parent);
     void buildUiInfoPanel(QWidget *parent);
+    void buildUiSettingsPanel(QWidget *parent);
+    void buildUiAboutPanel(QWidget *parent);
 
     void buildUi();
 
@@ -94,6 +97,9 @@ private:
 
     void triggerAutoLogin();
 
+    void resizeForLogState(bool expanded);
+    void saveWindowGeometryToConfig();
+
     // 成员
     SrunClient *m_client = nullptr;
     Config m_config;
@@ -104,6 +110,8 @@ private:
     OnlineState m_onlineState = OnlineState::Unknown;
     bool m_forceQuit = false;
     bool m_pendingAutoLogin = false;
+    int m_expandedWindowHeight = -1;
+    bool m_firstShowDone = false;
 
     // 图标
     QIcon m_iconChevronDown;
@@ -146,9 +154,13 @@ private:
     QLabel *m_infoDeviceTotalLabel= nullptr;
 
     // 固定窗口尺寸
-    static constexpr int kWindowWidth           = 380;
-    static constexpr int kWindowHeightExpanded  = 520;
-    static constexpr int kWindowHeightCollapsed = 272;
+    static constexpr int kAuthFormHeight     = 120;
+    static constexpr int kOpBtnRowHeight     = 45;
+    static constexpr int kStatusRowHeight    = 30;
+    static constexpr int kDetailTabMinHeight = 260;
+    static constexpr int kWindowMinWidth     = 360;
+    static constexpr int kWindowMinHeight    =
+        kAuthFormHeight + kOpBtnRowHeight +kStatusRowHeight + kDetailTabMinHeight;
 
 signals:
     void onlineStateChanged(OnlineState state);
