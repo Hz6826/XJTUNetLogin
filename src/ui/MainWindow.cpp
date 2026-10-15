@@ -78,14 +78,15 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     box.setText("你想退出程序还是最小化到托盘？");
 
     const QPushButton *minBtn = box.addButton("最小化到托盘", QMessageBox::AcceptRole);
-    box.addButton("退出程序", QMessageBox::RejectRole);
+    box.addButton("退出程序", QMessageBox::DestructiveRole);  // const QPushButton *quitBtn
+    const QPushButton *cancelBtn = box.addButton("取消", QMessageBox::RejectRole);
     auto *rememberBox = new QCheckBox("记住我的选择");
     box.setCheckBox(rememberBox);
 
     box.exec();
 
     QAbstractButton *clicked = box.clickedButton();
-    if (!clicked) {
+    if (clicked == cancelBtn || clicked == nullptr) {
         event->ignore();
         return;
     }
