@@ -37,6 +37,12 @@ qt_add_executable(XJTUNetLogin
         src/ui/TrayController.cpp
         resources/resources.qrc
         src/platform/AutoStart.cpp
+        src/ui/ThemeUtils.h
+        src/ui/MainWindowUi.cpp
+        src/ui/MainWindowLog.cpp
+        src/ui/MainWindowConfig.cpp
+        src/ui/MainWindowAuth.cpp
+        src/ui/MainWIndowInfo.cpp
         # 后续逐步加入：
         # src/core/AutoLoginService.cpp
         # src/platform/WindowsPlatformHelper.cpp

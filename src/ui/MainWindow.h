@@ -1,7 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QDate>
 #include <QFile>
+#include <QIcon>
 #include <QMainWindow>
 
 #include "config/Config.h"
@@ -57,48 +59,45 @@ private slots:
     void onCaptivePortalDetected(const QString &newBaseUrl);
 
 private:
+    // ---------- UI 构建（MainWindowUi.cpp） ----------
     void loadIcons();
-
+    void buildUi();
     void buildUiAuthForm(QVBoxLayout *mainLayout);
     void buildUiAutoLogin(QVBoxLayout *mainLayout);
     void buildUiOpBtnRow(QVBoxLayout *mainLayout);
     void buildUiInfoArea(QVBoxLayout *mainLayout);
-
     void buildUiLogPanel(QWidget *parent);
     void buildUiInfoPanel(QWidget *parent);
     void buildUiSettingsPanel(QWidget *parent);
     void buildUiAboutPanel(QWidget *parent);
 
-    void buildUi();
-
+    // ---------- 配置/窗口几何（MainWindowConfig.cpp） ----------
     void loadConfigToUi();
-    void connectSignals();
-
-    void applyLogExpanded(bool expanded);
-    void appendLog(const QString &level, const QString &msg);
-
+    void syncAccountFieldsToConfig();
     bool saveConfigSilently();
+    void saveWindowGeometryToConfig();
+    void applyLogExpanded(bool expanded);
+    void resizeForLogState(bool expanded);
 
-    void applyOnlineInfo(const QJsonObject &info);
+    // ---------- 日志（MainWindowLog.cpp） ----------
+    void appendLog(const QString &level, const QString &msg);
+    void logWelcome();
+    void writeLogToFile(const QString &level, const QString &msg);
+    void ensureLogFileForToday();
+    static QString logDirPath();
+
+    // ---------- 认证/自动登录（MainWindowAuth.cpp） ----------
+    void connectSignals();
+    void triggerAutoLogin();
     void setOnlineState(OnlineState s);
     void updateUiForState();
 
+    // ---------- 在线信息面板（MainWindowInfo.cpp） ----------
+    void applyOnlineInfo(const QJsonObject &info);
     void updateOnlineInfoPanel(const QJsonObject &info);
     void clearOnlineInfoPanel();
     static QString formatBytes(qint64 bytes);
     static QString formatDuration(qint64 seconds);
-
-    void logWelcome();
-
-    void writeLogToFile(const QString &level, const QString &msg);
-    void ensureLogFileForToday();
-
-    static QString logDirPath();
-
-    void triggerAutoLogin();
-
-    void resizeForLogState(bool expanded);
-    void saveWindowGeometryToConfig();
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -142,25 +141,23 @@ private:
 
     QToolButton *m_openLogDirBtn = nullptr;
 
-    // 在线信息面板的字段 Label（每个字段一个 QLabel）
-    QLabel *m_infoAccountLabel    = nullptr;
-    QLabel *m_infoIpLabel         = nullptr;
-    QLabel *m_infoMacLabel        = nullptr;
-    QLabel *m_infoProductLabel    = nullptr;
-    QLabel *m_infoBillingLabel    = nullptr;
-    QLabel *m_infoUsedFlowLabel   = nullptr;
-    QLabel *m_infoUsedTimeLabel   = nullptr;
-    QLabel *m_infoBalanceLabel    = nullptr;
-    QLabel *m_infoDeviceTotalLabel= nullptr;
+    QLabel *m_infoAccountLabel     = nullptr;
+    QLabel *m_infoIpLabel          = nullptr;
+    QLabel *m_infoMacLabel         = nullptr;
+    QLabel *m_infoProductLabel     = nullptr;
+    QLabel *m_infoBillingLabel     = nullptr;
+    QLabel *m_infoUsedFlowLabel    = nullptr;
+    QLabel *m_infoUsedTimeLabel    = nullptr;
+    QLabel *m_infoBalanceLabel     = nullptr;
+    QLabel *m_infoDeviceTotalLabel = nullptr;
 
-    // 固定窗口尺寸
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;
     static constexpr int kStatusRowHeight    = 30;
     static constexpr int kDetailTabMinHeight = 260;
     static constexpr int kWindowMinWidth     = 360;
     static constexpr int kWindowMinHeight    =
-        kAuthFormHeight + kOpBtnRowHeight +kStatusRowHeight + kDetailTabMinHeight;
+        kAuthFormHeight + kOpBtnRowHeight + kStatusRowHeight + kDetailTabMinHeight;
 
 signals:
     void onlineStateChanged(OnlineState state);
