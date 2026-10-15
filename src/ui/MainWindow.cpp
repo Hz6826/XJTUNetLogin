@@ -386,12 +386,6 @@ void MainWindow::onAuthClicked() {
         m_client->login(m_config.username, m_config.password, m_config.acId, m_config.domain);
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("STEP", "用户点击注销");
-
-        if (m_autoLoginCheck->isChecked()) {
-            m_autoLoginCheck->setChecked(false);
-            appendLog("INFO", "已取消自动登录（用户主动注销）");
-        }
-
         if (m_postLoginTimer->isActive()) {
             m_postLoginTimer->stop();
             appendLog("WARN", "取消了计划的外网连通性检查");
@@ -467,7 +461,6 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     if (m_pendingAutoLogin) {
         m_pendingAutoLogin = false;
         m_autoLoginCheck->setChecked(false);
-        saveConfigSilently();
         appendLog("ERROR", "自动登录失败，已取消勾选：" + msg);
     }
     setOnlineState(OnlineState::Offline);
@@ -478,6 +471,12 @@ void MainWindow::onLogoutSucceeded(const QJsonObject &) {
     setOnlineState(OnlineState::Offline);
     clearOnlineInfoPanel();
     m_pendingAutoLogin = false;
+
+    if (m_autoLoginCheck->isChecked()) {
+        m_autoLoginCheck->setChecked(false);
+        appendLog("INFO", "已取消自动登录（用户主动注销）");
+    }
+
     appendLog("SUCCESS", "注销成功");
 }
 
@@ -508,8 +507,10 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
 }
 
 void MainWindow::onAutoLoginToggled(bool on) {
-    if (on && (m_onlineState == OnlineState::Offline ||
-               m_onlineState == OnlineState::Unknown)) {
+    saveConfigSilently();
+    if (!on) return;
+    if (m_onlineState == OnlineState::Offline ||
+        m_onlineState == OnlineState::Unknown) {
         appendLog("STEP", "自动登录已启用，尝试登录...");
         m_pendingAutoLogin = true;
 
@@ -522,12 +523,10 @@ void MainWindow::onAutoLoginToggled(bool on) {
         setOnlineState(OnlineState::Busy);
         m_client->login(m_config.username, m_config.password,
                         m_config.acId, m_config.domain);
-    } else if (on && m_onlineState == OnlineState::Online) {
+    } else if (m_onlineState == OnlineState::Online) {
         appendLog("INFO", "已在线，无需自动登录");
     }
     // Busy 时复选框被禁用，不会触发到这里
-
-    saveConfigSilently();
 }
 
 void MainWindow::onAutoStartToggled(bool on) {
