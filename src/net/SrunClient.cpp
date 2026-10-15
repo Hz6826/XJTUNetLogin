@@ -200,40 +200,44 @@ void SrunClient::logout(const QString &username, const QString &acId,
 // 公开入口：queryOnline
 // ============================================================
 
-void SrunClient::queryOnline() {
-    log("STEP", "→ 查询在线状态");
+void SrunClient::queryOnline(bool silent) {
+    if (!silent) log("STEP", "→ 查询在线状态");
 
     const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(kBaseUrl);
-    log("HTTP", "GET " + fullUrl);
+    if (!silent) log("HTTP", "GET " + fullUrl);
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        onQueryOnlineFinished(reply);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, silent] {
+        onQueryOnlineFinished(reply, silent);
     });
 }
 
-void SrunClient::onQueryOnlineFinished(QNetworkReply *reply) {
+void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
     const QByteArray data = reply->readAll();
     const auto netErr = reply->error();
     const QString netErrStr = reply->errorString();
     reply->deleteLater();
 
     if (netErr != QNetworkReply::NoError) {
-        log("ERROR", "查询在线 网络错误: " + netErrStr);
-        emit onlineQueryFailed("网络错误: " + netErrStr);
+        if (!silent) {
+            log("ERROR", "查询在线 网络错误: " + netErrStr);
+            emit onlineQueryFailed("网络错误: " + netErrStr);
+        }
         return;
     }
 
-    log("HTTP", "← 在线信息响应: " + previewBody(data, 300));
+    if (!silent) log("HTTP", "← 在线信息响应: " + previewBody(data, 300));
 
     bool ok = false;
     const QJsonObject obj = parseJsonOrJsonp(data, &ok);
     if (!ok) {
-        log("ERROR", "在线信息响应解析失败");
-        emit onlineQueryFailed("在线信息解析失败");
+        if (!silent) {
+            log("ERROR", "在线信息响应解析失败");
+            emit onlineQueryFailed("在线信息解析失败");
+        }
         return;
     }
 
@@ -242,30 +246,36 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply) {
         const QString clientIp = obj.value("client_ip").toString();
         if (!clientIp.isEmpty()) {
             m_ip = clientIp;
-            log("INFO", "已获取本机 IP: " + m_ip);
+            if (!silent) log("INFO", "已获取本机 IP: " + m_ip);
         }
     }
 
     const QString err = obj.value("error").toString();
 
     if (err == "ok") {
-        log("INFO", QString("当前在线: user=%1, ip=%2")
+        if (!silent) {
+            log("INFO", QString("当前在线: user=%1, ip=%2")
                 .arg(obj.value("user_name").toString(),
-                     obj.value("online_ip").toString()));
-        emit onlineInfoReceived(obj);
+                    obj.value("online_ip").toString()));
+            emit onlineInfoReceived(obj);
+        }
         emit onlineStatusRefreshed(true, obj);
         return;
     }
 
     if (err == "not_online_error") {
-        log("INFO", "当前不在线");
-        emit onlineQueryFailed("not_online_error");
+        if (!silent) {
+            log("INFO", "当前不在线");
+            emit onlineQueryFailed("not_online_error");
+        }
         emit onlineStatusRefreshed(false, {});
         return;
     }
 
-    log("ERROR", "查询在线失败: " + err);
-    emit onlineQueryFailed(err);
+    if (!silent) {
+        log("ERROR", "查询在线失败: " + err);
+        emit onlineQueryFailed(err);
+    }
 }
 
 void SrunClient::checkInternet() {

@@ -26,7 +26,7 @@ public:
                 const QString &acId,
                 const QString &domain);
 
-    void queryOnline();
+    void queryOnline(bool silent = false);
 
     void checkInternet();
 
@@ -75,7 +75,7 @@ private:
     void doPollStep();
     void onPollStepFinished(QNetworkReply *reply);
 
-    void onQueryOnlineFinished(QNetworkReply *reply);
+    void onQueryOnlineFinished(QNetworkReply *reply, bool silent);
 
     void onCheckInternetFinished(QNetworkReply *reply);
 

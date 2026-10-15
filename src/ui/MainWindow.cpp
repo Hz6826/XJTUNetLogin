@@ -486,6 +486,9 @@ void MainWindow::onLogoutFailed(const QString &msg, const QJsonObject &) {
     if (msg.contains("Network unreachable")) {
         appendLog("ERROR", "你似乎没有连接到校园网，请检查你的网络配置");
     }
+
+    setOnlineState(OnlineState::Offline);
+    m_client->queryOnline(true);
 }
 
 void MainWindow::onInternetReachable() {
