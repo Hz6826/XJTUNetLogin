@@ -51,6 +51,8 @@ private slots:
     void onInternetReachable();
     void onInternetUnreachable(const QString &reason);
     void onOnlineStatusRefreshed(bool online, const QJsonObject &info);
+    void onAutoLoginToggled(bool on);
+    void onAutoStartToggled(bool on);
 
 private:
     void loadIcons();
@@ -97,6 +99,7 @@ private:
     bool m_lastDarkTheme = true;
     OnlineState m_onlineState = OnlineState::Unknown;
     bool m_forceQuit = false;
+    bool m_pendingAutoLogin = false;
 
     // 图标
     QIcon m_iconChevronDown;
@@ -112,7 +115,6 @@ private:
 
     QCheckBox *m_autoStartCheck = nullptr;
     QCheckBox *m_autoLoginCheck = nullptr;
-    QLineEdit *m_ssidEdit = nullptr;
 
     QPushButton *m_authBtn = nullptr;
     QPushButton *m_pingBtn = nullptr;

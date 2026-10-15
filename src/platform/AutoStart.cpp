@@ -27,7 +27,6 @@ namespace AutoStart {
 
 #ifdef Q_OS_WIN
     // ========== Windows 实现 ==========
-#include <QSettings>
 
     bool isEnabled() {
         QSettings settings(

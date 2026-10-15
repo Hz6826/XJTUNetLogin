@@ -227,15 +227,11 @@ void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
     auto *autoGroup = new QGroupBox("自动登录");
     auto *autoLayout = new QHBoxLayout(autoGroup);
 
-    auto *ssidLabel = new QLabel("SSID");
-    ssidLabel->setToolTip("即Wi-Fi名称，默认XJTU_STU");
-    ssidLabel->installEventFilter(this);
-    m_ssidEdit = new QLineEdit;
     m_autoStartCheck = new QCheckBox("开机自启");
     m_autoLoginCheck = new QCheckBox("自动登录");
+    m_autoLoginCheck->setToolTip("检测到校园网需要认证时自动登录");
+    m_autoLoginCheck->installEventFilter(this);
 
-    autoLayout->addWidget(ssidLabel);
-    autoLayout->addWidget(m_ssidEdit, 1);
     autoLayout->addWidget(m_autoStartCheck);
     autoLayout->addWidget(m_autoLoginCheck);
 
@@ -390,6 +386,12 @@ void MainWindow::onAuthClicked() {
         m_client->login(m_config.username, m_config.password, m_config.acId, m_config.domain);
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("STEP", "用户点击注销");
+
+        if (m_autoLoginCheck->isChecked()) {
+            m_autoLoginCheck->setChecked(false);
+            appendLog("INFO", "已取消自动登录（用户主动注销）");
+        }
+
         if (m_postLoginTimer->isActive()) {
             m_postLoginTimer->stop();
             appendLog("WARN", "取消了计划的外网连通性检查");
@@ -462,6 +464,12 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     if (msg.contains("E2901")) {
         appendLog("ERROR", "用户名或密码错误");
     }
+    if (m_pendingAutoLogin) {
+        m_pendingAutoLogin = false;
+        m_autoLoginCheck->setChecked(false);
+        saveConfigSilently();
+        appendLog("ERROR", "自动登录失败，已取消勾选：" + msg);
+    }
     setOnlineState(OnlineState::Offline);
 }
 
@@ -469,6 +477,7 @@ void MainWindow::onLogoutSucceeded(const QJsonObject &) {
     m_statusLabel->setText("已离线");
     setOnlineState(OnlineState::Offline);
     clearOnlineInfoPanel();
+    m_pendingAutoLogin = false;
     appendLog("SUCCESS", "注销成功");
 }
 
@@ -495,6 +504,39 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
     } else {
         clearOnlineInfoPanel();
         setOnlineState(OnlineState::Offline);
+    }
+}
+
+void MainWindow::onAutoLoginToggled(bool on) {
+    if (on && (m_onlineState == OnlineState::Offline ||
+               m_onlineState == OnlineState::Unknown)) {
+        appendLog("STEP", "自动登录已启用，尝试登录...");
+        m_pendingAutoLogin = true;
+
+        // 直接从输入框读值，不走 onAuthClicked（避免合并按钮的状态分派）
+        m_config.username = m_usernameEdit->text();
+        m_config.password = m_passwordEdit->text();
+        m_config.acId = m_acIdEdit->text();
+        m_config.domain = m_domainEdit->text();
+
+        setOnlineState(OnlineState::Busy);
+        m_client->login(m_config.username, m_config.password,
+                        m_config.acId, m_config.domain);
+    } else if (on && m_onlineState == OnlineState::Online) {
+        appendLog("INFO", "已在线，无需自动登录");
+    }
+    // Busy 时复选框被禁用，不会触发到这里
+
+    saveConfigSilently();
+}
+
+void MainWindow::onAutoStartToggled(bool on) {
+    const bool ok = AutoStart::setEnabled(on);
+    saveConfigSilently(); // 无论成败都同步 Config（保持缓存一致）
+    if (ok) {
+        appendLog("INFO", on ? "已启用开机自启" : "已取消开机自启");
+    } else {
+        appendLog("ERROR", "开机自启设置失败，可能被安全软件阻止");
     }
 }
 
@@ -551,7 +593,6 @@ void MainWindow::loadConfigToUi() {
 
     m_autoStartCheck->setChecked(AutoStart::isEnabled());
     m_autoLoginCheck->setChecked(m_config.autoLogin);
-    m_ssidEdit->setText(m_config.ssid);
 
     m_filterHttpCheck->setChecked(m_config.filterHttpLog);
     m_detailTab->setCurrentIndex(m_config.currentTab);
@@ -564,7 +605,6 @@ bool MainWindow::saveConfigSilently() {
     m_config.domain = m_domainEdit->text();
     m_config.autoStart = m_autoStartCheck->isChecked();
     m_config.autoLogin = m_autoLoginCheck->isChecked();
-    m_config.ssid = m_ssidEdit->text();
 
     m_config.filterHttpLog = m_filterHttpCheck->isChecked();
     m_config.currentTab = m_detailTab->currentIndex();
@@ -604,6 +644,7 @@ void MainWindow::updateUiForState() {
     const bool editable2 = m_onlineState != OnlineState::Busy;
     m_authBtn->setEnabled(editable2);
     m_saveBtn->setEnabled(editable2);
+    m_autoLoginCheck->setEnabled(editable2);
 
     // 按状态切换按钮文案和配色
     QPalette pal = m_authBtn->palette();
@@ -744,6 +785,10 @@ void MainWindow::connectSignals() {
             this, [this] { saveConfigSilently(); });
     connect(m_openLogDirBtn, &QToolButton::clicked,
             this, &MainWindow::onOpenLogDirClicked);
+    connect(m_autoStartCheck, &QCheckBox::toggled,
+            this, &MainWindow::onAutoStartToggled);
+    connect(m_autoLoginCheck, &QCheckBox::toggled,
+            this, &MainWindow::onAutoLoginToggled);
 
     // SrunClient 信号 → 自己的槽
     connect(m_client, &SrunClient::logMessage,
@@ -764,20 +809,4 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onInternetReachable);
     connect(m_client, &SrunClient::internetUnreachable,
             this, &MainWindow::onInternetUnreachable);
-
-    // 自动登录组的自动保存
-    connect(m_autoStartCheck, &QCheckBox::toggled, this, [this](bool on) {
-        const bool ok = AutoStart::setEnabled(on);
-        saveConfigSilently();        // 无论成败都同步 Config（保持缓存一致）
-        if (ok) {
-            appendLog("INFO", on ? "已启用开机自启" : "已取消开机自启");
-        }
-        else {
-            appendLog("ERROR", "开机自启设置失败，可能被安全软件阻止");
-        }
-    });
-    connect(m_autoLoginCheck, &QCheckBox::toggled,
-            this, [this] { saveConfigSilently(); });
-    connect(m_ssidEdit, &QLineEdit::editingFinished,
-            this, [this] { saveConfigSilently(); });
 }

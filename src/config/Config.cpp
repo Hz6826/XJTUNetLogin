@@ -56,7 +56,6 @@ Config Config::fromJson(const QJsonObject &root) {
 
     c.autoStart = autoCfg.value("autoStart").toBool(false);
     c.autoLogin = autoCfg.value("autoLogin").toBool(true);
-    c.ssid = autoCfg.value("ssid").toString("XJTU_STU");
 
     const QJsonObject uiCfg = root.value("ui").toObject();
 
@@ -77,7 +76,6 @@ QJsonObject Config::toJson() const {
     QJsonObject autoCfg;
     autoCfg["autoStart"] = autoStart;
     autoCfg["autoLogin"] = autoLogin;
-    autoCfg["ssid"] = ssid;
 
     QJsonObject uiCfg;
     uiCfg["logExpanded"] = logExpanded;

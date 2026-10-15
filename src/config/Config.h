@@ -18,7 +18,6 @@ struct Config {
     // ---------- auto 分组 ----------
     bool autoStart = false;
     bool autoLogin = true;
-    QString ssid = "XJTU_STU";
 
     // ----------  ui 分组 ----------
     bool logExpanded = true;
