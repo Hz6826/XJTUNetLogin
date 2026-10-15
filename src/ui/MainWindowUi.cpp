@@ -21,6 +21,7 @@
 #include <QPushButton>
 #include <QTabWidget>
 #include <QToolButton>
+#include <QIntValidator>
 #include <QVBoxLayout>
 
 void MainWindow::loadIcons() {
@@ -107,21 +108,6 @@ void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     mainLayout->addWidget(buttonRowWrapper);
 }
 
-void MainWindow::buildUiAutoLogin(QVBoxLayout *mainLayout) {
-    auto *autoGroup = new QGroupBox("自动登录");
-    auto *autoLayout = new QHBoxLayout(autoGroup);
-
-    m_autoStartCheck = new QCheckBox("开机自启");
-    m_autoLoginCheck = new QCheckBox("自动登录");
-    m_autoLoginCheck->setToolTip("检测到校园网需要认证时自动登录");
-    m_autoLoginCheck->installEventFilter(this);
-
-    autoLayout->addWidget(m_autoStartCheck);
-    autoLayout->addWidget(m_autoLoginCheck);
-
-    mainLayout->addWidget(autoGroup);
-}
-
 void MainWindow::buildUiInfoArea(QVBoxLayout *mainLayout) {
     auto *statusRowWrapper = new QWidget;
     auto *statusRow = new QHBoxLayout(statusRowWrapper);
@@ -181,7 +167,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
     m_openLogDirBtn->setAutoRaise(true);
     m_openLogDirBtn->setToolTip("打开日志目录");
     m_openLogDirBtn->setIcon(m_iconFolder);
-    m_openLogDirBtn->installEventFilter(this);       // 修正：原来是 m_clearLogBtn 装错了
+    m_openLogDirBtn->installEventFilter(this);
     toolRow->addWidget(m_openLogDirBtn);
 
     layout->addLayout(toolRow);
@@ -243,6 +229,54 @@ void MainWindow::buildUiInfoPanel(QWidget *parent) {
 void MainWindow::buildUiSettingsPanel(QWidget *parent) {
     auto *uiSettingsLayout = new QVBoxLayout(parent);
     buildUiAutoLogin(uiSettingsLayout);
+    buildUiPollingSetting(uiSettingsLayout);
+
+    uiSettingsLayout->addStretch();
+}
+
+void MainWindow::buildUiAutoLogin(QVBoxLayout *uiSettingsLayout) {
+    auto *autoGroup = new QGroupBox("自动登录");
+    auto *autoLayout = new QHBoxLayout(autoGroup);
+
+    m_autoStartCheck = new QCheckBox("开机自启");
+    m_autoLoginCheck = new QCheckBox("自动登录");
+    m_autoLoginCheck->setToolTip("检测到校园网需要认证时自动登录");
+    m_autoLoginCheck->installEventFilter(this);
+
+    autoLayout->addWidget(m_autoStartCheck);
+    autoLayout->addWidget(m_autoLoginCheck);
+
+    uiSettingsLayout->addWidget(autoGroup);
+}
+
+void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
+    auto *pollingGroup = new QGroupBox("轮询");
+    auto *pollingLayout = new QHBoxLayout(pollingGroup);
+
+    QLabel *pollTimerIntervalLabel = new QLabel("轮询间隔(ms)");
+    QString toolTipText = QString("单位为毫秒，可以设置%1 (%2) 到%3 (%4) 间的任意整数值")
+        .arg(Config::kMinPollInterval)
+        .arg(formatDuration(static_cast<qint64>(Config::kMinPollInterval) / 1000))
+        .arg(Config::kMaxPollInterval)
+        .arg(formatDuration(static_cast<qint64>(Config::kMaxPollInterval) / 1000));
+    pollTimerIntervalLabel->setToolTip(toolTipText);
+    pollTimerIntervalLabel->installEventFilter(this);
+
+    m_pollTimerIntervalEdit = new QLineEdit;
+    QIntValidator *validator = new QIntValidator(Config::kMinPollInterval, Config::kMaxPollInterval, this);
+    m_pollTimerIntervalEdit->setValidator(validator);
+    m_pollTimerIntervalEdit->setToolTip(toolTipText);
+    m_pollTimerIntervalEdit->installEventFilter(this);
+
+    m_pollTimerApplyBtn = new QPushButton("重置并应用");
+    m_pollTimerApplyBtn->setToolTip("会立即重置当前定时器，并应用新的时间（间隔未更改也会重置）");
+    m_pollTimerApplyBtn->installEventFilter(this);
+
+    pollingLayout->addWidget(pollTimerIntervalLabel);
+    pollingLayout->addWidget(m_pollTimerIntervalEdit);
+    pollingLayout->addWidget(m_pollTimerApplyBtn);
+
+    uiSettingsLayout->addWidget(pollingGroup);
 }
 
 void MainWindow::buildUiAboutPanel(QWidget *parent) {

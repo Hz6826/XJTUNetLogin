@@ -26,8 +26,8 @@ int main(int argc, char *argv[]) {
     MainWindow window(&client);
     TrayController tray(&client, &window);
 
-    client.startPolling();
+    client.startPolling(window.config().pollTimerIntervalMs);
     window.show();
 
-    return app.exec();
+    return QApplication::exec();
 }

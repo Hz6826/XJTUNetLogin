@@ -155,6 +155,10 @@ void MainWindow::setForceQuit(bool force) {
     m_forceQuit = force;
 }
 
+const Config &MainWindow::config() const {
+    return m_config;
+}
+
 void MainWindow::setOnlineState(OnlineState s) {
     m_onlineState = s;
     updateUiForState();
@@ -212,6 +216,8 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onAutoStartToggled);
     connect(m_autoLoginCheck, &QCheckBox::toggled,
             this, &MainWindow::onAutoLoginToggled);
+    connect(m_pollTimerApplyBtn, &QPushButton::clicked,
+                   this, &MainWindow::onPollTimerApplyBtnClicked);
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);

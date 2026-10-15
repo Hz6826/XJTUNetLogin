@@ -56,6 +56,8 @@ Config Config::fromJson(const QJsonObject &root) {
 
     c.autoStart = autoCfg.value("autoStart").toBool(false);
     c.autoLogin = autoCfg.value("autoLogin").toBool(true);
+    int rawInterval = autoCfg.value("pollTimerIntervalMs").toInt(30000);
+    c.pollTimerIntervalMs = std::clamp(rawInterval, kMinPollInterval, kMaxPollInterval);
 
     const QJsonObject uiCfg = root.value("ui").toObject();
 
@@ -80,6 +82,7 @@ QJsonObject Config::toJson() const {
     QJsonObject autoCfg;
     autoCfg["autoStart"] = autoStart;
     autoCfg["autoLogin"] = autoLogin;
+    autoCfg["pollTimerIntervalMs"] = pollTimerIntervalMs;
 
     QJsonObject uiCfg;
     uiCfg["logExpanded"] = logExpanded;

@@ -18,6 +18,7 @@ struct Config {
     // ---------- auto 分组 ----------
     bool autoStart = false;
     bool autoLogin = true;
+    int pollTimerIntervalMs = 30000;
 
     // ----------  ui 分组 ----------
     bool logExpanded = true;
@@ -39,6 +40,9 @@ struct Config {
 
     // 配置文件路径（调试用）
     static QString filePath();
+
+    static constexpr int kMinPollInterval = 10000;
+    static constexpr int kMaxPollInterval = 600000;
 
 private:
     // JSON 序列化辅助

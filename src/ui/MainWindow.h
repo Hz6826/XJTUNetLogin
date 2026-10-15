@@ -29,6 +29,7 @@ public:
     explicit MainWindow(SrunClient *client, QWidget *parent = nullptr);
     bool eventFilter(QObject *obj, QEvent *event) override;
     void setForceQuit(bool force);
+    const Config &config() const;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -57,13 +58,15 @@ private slots:
     void onAutoLoginToggled(bool on);
     void onAutoStartToggled(bool on);
     void onCaptivePortalDetected(const QString &newBaseUrl);
+    void onPollTimerApplyBtnClicked();
 
 private:
     // ---------- UI 构建（MainWindowUi.cpp） ----------
     void loadIcons();
     void buildUi();
     void buildUiAuthForm(QVBoxLayout *mainLayout);
-    void buildUiAutoLogin(QVBoxLayout *mainLayout);
+    void buildUiAutoLogin(QVBoxLayout *uiSettingsLayout);
+    void buildUiPollingSetting(QVBoxLayout *uiSettingsLayout);
     void buildUiOpBtnRow(QVBoxLayout *mainLayout);
     void buildUiInfoArea(QVBoxLayout *mainLayout);
     void buildUiLogPanel(QWidget *parent);
@@ -78,6 +81,7 @@ private:
     void saveWindowGeometryToConfig();
     void applyLogExpanded(bool expanded);
     void resizeForLogState(bool expanded);
+    bool savePollTimerInterval(int interval);
 
     // ---------- 日志（MainWindowLog.cpp） ----------
     void appendLog(const QString &level, const QString &msg);
@@ -150,6 +154,9 @@ private:
     QLabel *m_infoUsedTimeLabel    = nullptr;
     QLabel *m_infoBalanceLabel     = nullptr;
     QLabel *m_infoDeviceTotalLabel = nullptr;
+
+    QLineEdit *m_pollTimerIntervalEdit = nullptr;
+    QPushButton *m_pollTimerApplyBtn = nullptr;
 
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;

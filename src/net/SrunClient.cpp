@@ -315,6 +315,13 @@ void SrunClient::stopPolling() {
     }
 }
 
+void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
+    if (m_pollTimer) {
+        m_pollTimer->setInterval(intervalMs);
+        m_pollTimer->start();
+    }
+}
+
 void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
 {
     const QByteArray data = reply->readAll();

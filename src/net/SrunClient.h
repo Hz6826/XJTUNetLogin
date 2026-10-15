@@ -33,9 +33,11 @@ public:
     void startPolling(int intervalMs = 30000);
     void stopPolling();
 
+    void applyPollingIntervalAndRestart(int intervalMs);
+
 signals:
     // ---- 通用日志（未来 textarea 直接连这个）----
-    // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR"
+    // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR" / "SUCCESS"
     void logMessage(const QString &level, const QString &message);
 
     // ---- 阶段变化（状态栏/标题栏用）----

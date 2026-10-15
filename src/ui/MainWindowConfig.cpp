@@ -24,6 +24,8 @@ void MainWindow::loadConfigToUi() {
 
     m_filterHttpCheck->setChecked(m_config.filterHttpLog);
     m_detailTab->setCurrentIndex(m_config.currentTab);
+
+    m_pollTimerIntervalEdit->setPlaceholderText(QString::number(m_config.pollTimerIntervalMs));
 }
 
 void MainWindow::syncAccountFieldsToConfig() {
@@ -105,4 +107,9 @@ void MainWindow::resizeForLogState(bool expanded) {
         resize(w, h);
         setFixedHeight(h);
     }
+}
+
+bool MainWindow::savePollTimerInterval(int interval) {
+    m_config.pollTimerIntervalMs = interval;
+    return m_config.save();
 }

@@ -11,6 +11,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QTimer>
 
@@ -174,4 +175,39 @@ void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
     if (m_onlineState == OnlineState::Busy) return;
 
     triggerAutoLogin();
+}
+
+void MainWindow::onPollTimerApplyBtnClicked() {
+    bool ok = false;
+    int interval = m_pollTimerIntervalEdit->text().toInt(&ok);
+    if (!ok) {
+        QMessageBox::critical(this, "错误", "数字解析失败！");
+        m_pollTimerIntervalEdit->setFocus();
+        m_pollTimerIntervalEdit->selectAll();
+        return;
+    }
+
+    if (interval < Config::kMinPollInterval || interval > Config::kMaxPollInterval) {
+        const QString detail = QString("请输入%1 (%2) 到%3 (%4) 间的整数值！")
+            .arg(Config::kMinPollInterval)
+            .arg(formatDuration(static_cast<qint64>(Config::kMinPollInterval) / 1000))
+            .arg(Config::kMaxPollInterval)
+            .arg(formatDuration(static_cast<qint64>(Config::kMaxPollInterval) / 1000));
+        QMessageBox::critical(this, "错误", detail);
+        m_pollTimerIntervalEdit->setFocus();
+        m_pollTimerIntervalEdit->selectAll();
+        return;
+    }
+
+    m_client->applyPollingIntervalAndRestart(interval);
+    if (!savePollTimerInterval(interval)) {
+        appendLog("WARN", "轮询间隔已生效，但保存到配置文件失败");
+    }
+    QString successTip = QString("成功设置间隔时间为 %1ms (%2) 并重启轮询计时器！")
+        .arg(interval)
+        .arg(formatDuration(static_cast<qint64>(interval) / 1000));
+    appendLog("SUCCESS", successTip);
+    QMessageBox::information(this, "成功", successTip);
+    m_pollTimerIntervalEdit->setPlaceholderText(QString::number(interval));
+    m_pollTimerIntervalEdit->setText(QString::number(interval));
 }
