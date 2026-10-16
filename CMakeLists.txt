@@ -2,7 +2,25 @@ cmake_minimum_required(VERSION 3.21)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-set(XJTU_VERSION "1.0.0" CACHE STRING "Project version (overridden by CI from git tag)")
+# ---------- 版本号处理 ----------
+# XJTU_VERSION 可能是 "1.0.0-rc.3" 这种带后缀的形式
+# project() 只接受纯数字，所以拆成两部分：
+#   PROJECT_VERSION  →  只给 project() 用，比如 "1.0.0"
+#   XJTU_VERSION     →  完整字符串，给 AppInfo 用，比如 "1.0.0-rc.3"
+
+set(XJTU_VERSION "1.0.0" CACHE STRING "Full project version (may include suffix)")
+
+# 拆出数字部分（遇到非数字字符就切掉）
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" XJTU_NUMERIC_VERSION "${XJTU_VERSION}")
+
+# 兜底：万一切出来是空的
+if (NOT XJTU_NUMERIC_VERSION)
+    set(XJTU_NUMERIC_VERSION "0.0.0")
+endif ()
+
+project(XJTUNetLogin VERSION ${XJTU_NUMERIC_VERSION} LANGUAGES CXX)
+
+# 后面 configure_file 时把完整版本也传进去（AppInfo.h.in 里用 @XJTU_VERSION@）
 
 project(XJTUNetLogin VERSION ${XJTU_VERSION} LANGUAGES CXX)
 
