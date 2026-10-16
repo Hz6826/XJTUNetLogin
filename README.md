@@ -28,8 +28,10 @@
 | 账户存储          | :white_check_mark: |
 | 托盘最小化         | :white_check_mark: |
 | 开机自启          | :white_check_mark: |
-| 自动登录          | :memo:             |
+| 自动登录          | :white_check_mark: |
+| 自动检查版本        | :white_check_mark: |
 | MacOS/Linux支持 | :memo:             |
+| Android 支持    | :memo:             |
 
 ## 运行
 

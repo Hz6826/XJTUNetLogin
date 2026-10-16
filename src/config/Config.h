@@ -38,7 +38,6 @@ struct Config {
     // 保存到磁盘；成功返回 true
     [[nodiscard]] bool save() const;
 
-    // 配置文件路径（调试用）
     static QString filePath();
 
     static constexpr int kMinPollInterval = 10000;

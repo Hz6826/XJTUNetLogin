@@ -11,14 +11,39 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QCoreApplication>
-#include <QTemporaryFile>
+#include <QFile>
+#include <QFileInfo>
+
+namespace {
+
+    // exe 同目录的 config.json —— 便携模式的标记文件
+    QString portableConfigPath() {
+        return QCoreApplication::applicationDirPath() + "/config.json";
+    }
+
+    bool isPortableMode() {
+        return QFile::exists(portableConfigPath());
+    }
+
+} // namespace
 
 QString Config::appDataDir() {
+    if (isPortableMode()) {
+        return QCoreApplication::applicationDirPath();
+    }
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 }
 
 QString Config::filePath() {
-    return appDataDir() + "/config.json";
+    if (isPortableMode()) {
+        return portableConfigPath();
+    }
+    const QString dir = QStandardPaths::writableLocation(
+        QStandardPaths::AppDataLocation);
+    if (!QDir().mkpath(dir)) {
+        qWarning() << "无法创建目录:" << dir;
+    }
+    return dir + "/config.json";
 }
 
 Config Config::load() {
@@ -27,14 +52,29 @@ Config Config::load() {
     if (!file.open(QIODevice::ReadOnly)) {
         return {};
     }
-    const QByteArray data = file.readAll();
+    QByteArray data = file.readAll();
     file.close();
+
+    // 跳过 UTF-8 BOM（PowerShell 5.1 的 Out-File 会加）
+    if (data.startsWith("\xEF\xBB\xBF")) {
+        data.remove(0, 3);
+    }
+
+    // 空文件（便携版首次运行）→ 直接用默认配置
+    if (data.trimmed().isEmpty()) {
+        return {};
+    }
 
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
     if (err.error != QJsonParseError::NoError) {
         qWarning() << "config.json 解析失败:" << err.errorString()
                    << "@ offset" << err.offset;
+        return {};
+    }
+
+    if (!doc.isObject()) {
+        qWarning() << "config.json 根节点不是 JSON 对象";
         return {};
     }
 
@@ -111,7 +151,8 @@ bool Config::save() const {
 
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        qWarning() << "无法写入文件:" << path;
+        qWarning() << "无法写入文件:" << path
+        << "错误:" << file.errorString();
         return false;
     }
 
