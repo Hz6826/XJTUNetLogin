@@ -153,14 +153,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     }
 
     if (event->type() == QEvent::MouseButtonRelease) {
-        if (event->type() == QEvent::MouseButtonRelease) {
-            const auto *widget  = qobject_cast<QWidget *>(obj);
+        const auto *widget  = qobject_cast<QWidget *>(obj);
+        // ReSharper disable once CppTooWideScopeInitStatement
+        const auto *mouseEv = static_cast<QMouseEvent *>(event);
 
-            if (const auto *mouseEv = dynamic_cast<QMouseEvent *>(event); widget && mouseEv->button() == Qt::LeftButton) {
-                if (widget == m_versionCheckLabel) {
-                    checkVersion();
-                    return true;
+        if (widget && mouseEv->button() == Qt::LeftButton) {
+            if (widget == m_versionCheckLabel) {
+                // 链接态放行，让 QLabel 打开链接
+                if (m_versionCheckLabel->text().contains(QLatin1String("<a "))) {
+                    return false;
                 }
+                checkVersion();
+                return true;
             }
         }
     }
