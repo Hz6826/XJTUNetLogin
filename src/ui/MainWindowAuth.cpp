@@ -152,7 +152,7 @@ void MainWindow::onAutoLoginToggled(bool on) {
     if (!on) return;
     if (m_onlineState == OnlineState::Offline ||
         m_onlineState == OnlineState::Unknown) {
-        // triggerAutoLogin(); // TODO
+        triggerAutoLogin();
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("INFO", "已在线，无需自动登录");
     }
