@@ -1,0 +1,102 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（手动触发时使用，如 1.0.0）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      QT_VERSION: '6.11.2'       # 与本地开发环境保持一致
+      BUILD_TYPE: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0        # 完整 git 历史，用于版本号提取
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.4.0
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: 'win64_mingw'
+          modules: 'qtsvg'
+          cache: true
+
+      # ---------- 确定版本号 ----------
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $v = "${{ github.event.inputs.version }}"
+          } else {
+            $v = "${{ github.ref_name }}" -replace '^v',''
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $v"
+
+      # ---------- 配置 & 构建 ----------
+      - name: Configure
+        run: >
+          cmake -B build -S .
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DXJTU_VERSION=${{ steps.ver.outputs.version }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      # ---------- 便携版 ----------
+      - name: Prepare portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path portable | Out-Null
+          Copy-Item -Path build\bin\* -Destination portable\ -Recurse -Force
+          # 无 BOM 的空 JSON —— 便携版标记
+          [System.IO.File]::WriteAllText("$PWD\portable\config.json", "{}")
+
+      - name: Zip portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path portable\* `
+                           -DestinationPath "dist\XJTUNetLogin-Portable-${{ steps.ver.outputs.version }}.zip"
+
+      # ---------- 安装版 ----------
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion="${{ steps.ver.outputs.version }}" `
+            packaging\installer.iss
+
+      # ---------- 上传 ----------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: XJTUNetLogin-${{ steps.ver.outputs.version }}
+          path: dist/*
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true

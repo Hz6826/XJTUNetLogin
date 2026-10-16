@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.21)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-project(XJTUNetLogin VERSION 0.5.0 LANGUAGES CXX)
+set(XJTU_VERSION "1.0.0" CACHE STRING "Project version (overridden by CI from git tag)")
+
+project(XJTUNetLogin VERSION ${XJTU_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -102,7 +104,12 @@ target_link_libraries(XJTUNetLogin PRIVATE
 # ---------- Windows 开发时拷贝 Qt 运行时 DLL ----------
 if (WIN32)
     find_program(WINDEPLOYQT_EXE windeployqt
-            HINTS "${QT_INSTALL_PATH}/bin")
+            HINTS
+            "$ENV{QT_ROOT_DIR}/bin"       # install-qt-action
+            "${QT_ROOT_DIR}/bin"          # 备用
+            "${QT_INSTALL_PATH}/bin"      # 本地你原来用的
+            # 不写 PATHS 时默认搜 PATH，CI 里能直接命中
+    )
 
     if (WINDEPLOYQT_EXE)
         add_custom_command(TARGET XJTUNetLogin POST_BUILD
