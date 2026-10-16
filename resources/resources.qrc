@@ -23,5 +23,7 @@
         <file>icons/tray/tray-online-32.png</file>
 
         <file>icons/app/full-icon-half.png</file>
+
+        <file>icons/about/qt-logo-neon.svg</file>
     </qresource>
 </RCC>

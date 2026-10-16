@@ -5,6 +5,8 @@
 
 // ReSharper disable CppDFAMemoryLeak
 
+#include <AppInfo.h>
+
 #include "MainWindow.h"
 
 #include "ThemeUtils.h"
@@ -22,7 +24,8 @@
 #include <QTabWidget>
 #include <QToolButton>
 #include <QIntValidator>
-#include <QVBoxLayout>
+#include <QSvgRenderer>
+#include <QPainter>
 
 void MainWindow::loadIcons() {
     const QString dir = Theme::isDark() ? ":/icons/dark" : ":/icons/light";
@@ -43,6 +46,8 @@ void MainWindow::buildUi() {
     setCentralWidget(central);
     setMinimumWidth(kWindowMinWidth);
     setMinimumHeight(kWindowMinHeight);
+    setMaximumWidth(kWindowMaxWidth);
+    setMaximumHeight(kWindowMaxHeight);
 }
 
 void MainWindow::buildUiAuthForm(QVBoxLayout *mainLayout) {
@@ -280,5 +285,111 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
 }
 
 void MainWindow::buildUiAboutPanel(QWidget *parent) {
-    // TODO
+    auto *uiAboutLayout = new QVBoxLayout(parent);
+    uiAboutLayout->setContentsMargins(24, 12, 24, 12);
+    uiAboutLayout->setSpacing(12);
+
+    uiAboutLayout->addStretch();
+
+    // ---------- 图标 + 标题一行 ----------
+    auto *titleRow = new QHBoxLayout;
+    titleRow->setSpacing(16);
+    titleRow->setAlignment(Qt::AlignCenter);
+
+    auto *fullIconLabel = new QLabel;
+    QPixmap pix(":/icons/app/app-48.png");
+    if (!pix.isNull()) {
+        fullIconLabel->setPixmap(pix);
+    }
+    fullIconLabel->setAlignment(Qt::AlignCenter);
+    fullIconLabel->setFixedSize(48, 48);
+    titleRow->addWidget(fullIconLabel, 0, Qt::AlignVCenter);
+
+    // 右侧放标题 + 版本，竖排
+    auto *titleTextCol = new QVBoxLayout;
+    titleTextCol->setSpacing(8);
+    titleTextCol->addStretch();
+
+    auto *titleLabel = new QLabel(AppInfo::Description);
+    QFont titleFont = titleLabel->font();
+    titleFont.setPointSize(titleFont.pointSize() + 8);
+    titleFont.setBold(true);
+    titleLabel->setFont(titleFont);
+    titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    titleLabel->setStyleSheet(QString("color: #c92b2f;"));
+    titleTextCol->addWidget(titleLabel);
+
+    auto *versionLabel = new QLabel(QString("版本 v%1")
+        .arg(AppInfo::Version));
+    versionLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    versionLabel->setToolTip(QString("%2:%3 (%4)").arg(AppInfo::GitBranch, AppInfo::GitHashShort, AppInfo::BuildType));
+    versionLabel->installEventFilter(this);
+    versionLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    titleTextCol->addWidget(versionLabel);
+
+    titleRow->addLayout(titleTextCol);
+
+    uiAboutLayout->addLayout(titleRow);
+    uiAboutLayout->addStretch();
+
+    auto *detailRow = new QHBoxLayout;
+
+    auto *detailTextCol = new QVBoxLayout;
+    detailTextCol->setSpacing(2);
+    auto *authorLabel = new QLabel(QString("作者 %1").arg(AppInfo::Author));
+    detailTextCol->addWidget(authorLabel);
+
+    m_versionCheckLabel = new QLabel("当前新版本检查不可用");
+    detailTextCol->addWidget(m_versionCheckLabel);
+
+    auto *qtNoticeLabel = new QLabel(
+    QString("Powered by Qt %1 · LGPLv3").arg(QT_VERSION_STR));
+    qtNoticeLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    qtNoticeLabel->setToolTip(QString(
+        "Qt %1 (LGPLv3)\nhttps://www.qt.io/licensing").arg(QT_VERSION_STR));
+    qtNoticeLabel->installEventFilter(this);
+    detailTextCol->addWidget(qtNoticeLabel);
+
+    detailRow->addLayout(detailTextCol, 1);
+
+    auto *iconLabel = new QLabel;
+    iconLabel->setPixmap(renderSvg(":/icons/about/qt-logo-neon.svg", 45, 32,
+                                   iconLabel->devicePixelRatioF()));
+    iconLabel->setFixedSize(45, 32);
+    detailRow->addWidget(iconLabel, 0, Qt::AlignVCenter);
+
+    uiAboutLayout->addLayout(detailRow);
+
+    auto *linksLabel = new QLabel;
+    linksLabel->setText(QStringLiteral(
+        "<a href=\"%1\">GitHub 仓库</a>"
+        " &nbsp;|&nbsp; "
+        "<a href=\"%1/issues\">反馈问题</a>"
+        " &nbsp;|&nbsp; "
+        "<a href=\"%2\">作者主页</a>")
+        .arg(AppInfo::RepoUrl, AppInfo::AuthorUrl));
+    linksLabel->setOpenExternalLinks(true);
+    linksLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    linksLabel->setAlignment(Qt::AlignCenter);
+    uiAboutLayout->addWidget(linksLabel);
+
+    auto *starLabel = new QLabel("<i>麻烦点一下仓库的Star，谢谢喵~</i>");
+    uiAboutLayout->addWidget(starLabel);
+
+    uiAboutLayout->addStretch();
+}
+
+QPixmap MainWindow::renderSvg(const QString &path, int w, int h, qreal dpr) {
+    QSvgRenderer renderer(path);
+
+    QPixmap pix(w * dpr, h * dpr);
+    pix.fill(Qt::transparent);
+
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    renderer.render(&p, QRectF(0, 0, w * dpr, h * dpr));
+    p.end();
+
+    pix.setDevicePixelRatio(dpr);
+    return pix;
 }

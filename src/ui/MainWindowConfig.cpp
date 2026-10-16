@@ -86,7 +86,7 @@ void MainWindow::resizeForLogState(bool expanded) {
 
     if (expanded) {
         setMinimumHeight(kWindowMinHeight);
-        setMaximumHeight(QWIDGETSIZE_MAX);
+        setMaximumHeight(kWindowMaxHeight);
 
         resize(w, m_expandedWindowHeight > 0
                       ? m_expandedWindowHeight
@@ -95,7 +95,7 @@ void MainWindow::resizeForLogState(bool expanded) {
         m_expandedWindowHeight = height();
 
         setMinimumHeight(0);
-        setMaximumHeight(QWIDGETSIZE_MAX);
+        setMaximumHeight(kWindowMaxHeight);
 
         if (auto *cw = centralWidget()) {
             cw->updateGeometry();

@@ -37,6 +37,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
     m_client->checkInternet();
+    checkVersion();
 
     setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
     if (!m_config.windowGeometry.isEmpty()) {

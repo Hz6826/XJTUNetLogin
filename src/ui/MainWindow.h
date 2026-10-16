@@ -1,10 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QDate>
 #include <QFile>
-#include <QIcon>
 #include <QMainWindow>
+#include <QLabel>
 
 #include "config/Config.h"
 
@@ -74,6 +73,8 @@ private:
     void buildUiSettingsPanel(QWidget *parent);
     void buildUiAboutPanel(QWidget *parent);
 
+    static QPixmap renderSvg(const QString &path, int w, int h, qreal dpr);
+
     // ---------- 配置/窗口几何（MainWindowConfig.cpp） ----------
     void loadConfigToUi();
     void syncAccountFieldsToConfig();
@@ -102,6 +103,8 @@ private:
     void clearOnlineInfoPanel();
     static QString formatBytes(qint64 bytes);
     static QString formatDuration(qint64 seconds);
+
+    void checkVersion();
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -158,6 +161,8 @@ private:
     QLineEdit *m_pollTimerIntervalEdit = nullptr;
     QPushButton *m_pollTimerApplyBtn = nullptr;
 
+    QLabel *m_versionCheckLabel = nullptr;
+
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;
     static constexpr int kStatusRowHeight    = 30;
@@ -165,6 +170,8 @@ private:
     static constexpr int kWindowMinWidth     = 360;
     static constexpr int kWindowMinHeight    =
         kAuthFormHeight + kOpBtnRowHeight + kStatusRowHeight + kDetailTabMinHeight;
+    static constexpr int kWindowMaxWidth     = 500;
+    static constexpr int kWindowMaxHeight    = kWindowMinHeight + 200;
 
 signals:
     void onlineStateChanged(OnlineState state);

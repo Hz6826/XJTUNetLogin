@@ -1,9 +1,15 @@
 #pragma once
 namespace AppInfo {
-    inline constexpr const char *Version     = "@PROJECT_VERSION@";
-    inline constexpr const char *Name        = "@PROJECT_NAME@";
-    inline constexpr const char *Description = "仙交网络助手";
-    inline constexpr const char *Author      = "Hz6826";
-    inline constexpr const char *RepoUrl     = "https://github.com/Hz6826/XJTUNetLogin";
-    inline constexpr const char *License     = "MIT";
+    inline constexpr auto *Version     = "@PROJECT_VERSION@";
+    inline constexpr auto *Name        = "@PROJECT_NAME@";
+    inline constexpr auto *Description = "仙交网络助手";
+    inline constexpr auto *Author      = "Hz6826";
+    inline constexpr auto *AuthorUrl   = "https://github.com/Hz6826";
+    inline constexpr auto *RepoUrl     = "https://github.com/Hz6826/XJTUNetLogin";
+    inline constexpr auto *License     = "MIT";
+
+    inline constexpr auto *GitHashShort = "@GIT_HASH_SHORT@";
+    inline constexpr auto *GitBranch    = "@GIT_BRANCH@";
+    inline constexpr auto *BuildType    = "@BUILD_TYPE@";  // Debug / Release / RelWithDebInfo / MinSizeRel
+    inline constexpr bool IsDebugBuild = @IS_DEBUG_BUILD@;  // true / false
 }

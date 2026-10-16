@@ -21,12 +21,6 @@ find_package(Qt6 REQUIRED COMPONENTS
 
 qt_standard_project_setup()
 
-configure_file(
-        ${CMAKE_SOURCE_DIR}/src/AppInfo.h.in
-        ${CMAKE_BINARY_DIR}/generated/AppInfo.h
-        @ONLY
-)
-
 # ---------- 可执行目标 ----------
 qt_add_executable(XJTUNetLogin
         src/main.cpp
@@ -45,6 +39,44 @@ qt_add_executable(XJTUNetLogin
         src/ui/MainWindowInfo.cpp
         src/net/SrunHttpUtils.cpp
 )
+
+# ---------- 生成 AppInfo.h（含 Git 信息） ----------
+set(GIT_VERSION_FILE  ${CMAKE_BINARY_DIR}/generated/git_version.cmake)
+set(APPINFO_GENERATED ${CMAKE_BINARY_DIR}/generated/AppInfo.h)
+
+# 每次都跑一次 git 检查，但只有内容变化时才会写文件
+add_custom_target(git_version ALL
+        COMMAND ${CMAKE_COMMAND}
+        -D SRC=${CMAKE_SOURCE_DIR}
+        -D OUT=${GIT_VERSION_FILE}
+        -P ${CMAKE_SOURCE_DIR}/cmake/GetGitVersion.cmake
+        BYPRODUCTS ${GIT_VERSION_FILE}
+        COMMENT "Checking git version"
+        VERBATIM
+)
+
+# AppInfo.h 依赖 git_version.cmake（文件依赖，不是 target 依赖）
+# → git_version.cmake 没变时，AppInfo.h 也不会重新生成
+add_custom_command(
+        OUTPUT ${APPINFO_GENERATED}
+        COMMAND ${CMAKE_COMMAND}
+        -D SRC=${CMAKE_SOURCE_DIR}
+        -D OUT=${APPINFO_GENERATED}
+        -D VERSION=${PROJECT_VERSION}
+        -D NAME=${PROJECT_NAME}
+        -D GIT_VERSION_FILE=${GIT_VERSION_FILE}
+        -D BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateAppInfo.cmake
+        DEPENDS
+        ${CMAKE_SOURCE_DIR}/src/AppInfo.h.in
+        ${CMAKE_SOURCE_DIR}/cmake/GenerateAppInfo.cmake
+        ${GIT_VERSION_FILE}
+        COMMENT "Generating AppInfo.h"
+        VERBATIM
+)
+
+add_custom_target(appinfo DEPENDS ${APPINFO_GENERATED})
+add_dependencies(XJTUNetLogin appinfo)
 
 if (WIN32)
     target_sources(XJTUNetLogin PRIVATE
