@@ -42,13 +42,12 @@
 _注：两个版本文件并无差异，若主程序同目录下含有`config.json`会自动改为读取该文件，并转换为便携版，将日志存储在`./logs/`下_
 
 ## 画廊
+
 <details>
 
 <summary>点击展开画廊</summary>
 
-### You can add a header
-
-
+![ScreenShot](doc/screenshot.png)
 
 </details>
 
