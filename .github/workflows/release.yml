@@ -31,7 +31,6 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: 'win64_mingw'
-          modules: 'qtsvg'
           cache: true
 
       # ---------- 确定版本号 ----------
