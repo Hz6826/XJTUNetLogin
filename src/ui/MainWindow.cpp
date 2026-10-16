@@ -150,6 +150,19 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
             }
         }
     }
+
+    if (event->type() == QEvent::MouseButtonRelease) {
+        if (event->type() == QEvent::MouseButtonRelease) {
+            const auto *widget  = qobject_cast<QWidget *>(obj);
+
+            if (const auto *mouseEv = dynamic_cast<QMouseEvent *>(event); widget && mouseEv->button() == Qt::LeftButton) {
+                if (widget == m_versionCheckLabel) {
+                    checkVersion();
+                    return true;
+                }
+            }
+        }
+    }
     return QMainWindow::eventFilter(obj, event);
 }
 

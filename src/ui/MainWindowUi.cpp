@@ -340,7 +340,9 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     auto *authorLabel = new QLabel(QString("作者 %1").arg(AppInfo::Author));
     detailTextCol->addWidget(authorLabel);
 
-    m_versionCheckLabel = new QLabel("当前新版本检查不可用");
+    m_versionCheckLabel = new QLabel("当前新版本检查不可用（点我重试）");
+    m_versionCheckLabel->setToolTip("点击检查版本");
+    m_versionCheckLabel->installEventFilter(this);
     detailTextCol->addWidget(m_versionCheckLabel);
 
     auto *qtNoticeLabel = new QLabel(

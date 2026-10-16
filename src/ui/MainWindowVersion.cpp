@@ -50,14 +50,14 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
     // 404 = 仓库还没有正式 release（或全是 prerelease），不是错误
     if (status == 404) {
         appendLog("INFO", "暂无正式 release，跳过版本检查");
-        m_versionCheckLabel->setText(QStringLiteral("暂无发布版本"));
+        m_versionCheckLabel->setText(QStringLiteral("暂无发布版本（点我重试）"));
         return;
     }
 
     if (reply->error() != QNetworkReply::NoError) {
         const QString err = reply->errorString();
         appendLog("WARN", "版本检查失败: " + err);
-        m_versionCheckLabel->setText(QStringLiteral("版本检查失败：%1").arg(err));
+        m_versionCheckLabel->setText(QStringLiteral("版本检查失败（点我重试）：%1").arg(err));
         return;
     }
 
@@ -67,7 +67,7 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
     const QJsonDocument doc = QJsonDocument::fromJson(body);
     if (!doc.isObject()) {
         appendLog("WARN", "版本检查响应格式错误");
-        m_versionCheckLabel->setText(QStringLiteral("版本检查失败：响应格式错误"));
+        m_versionCheckLabel->setText(QStringLiteral("版本检查失败：响应格式错误（点我重试）"));
         return;
     }
 
@@ -77,7 +77,7 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
 
     if (tag.isEmpty()) {
         appendLog("WARN", "版本检查失败: 未找到 tag_name 字段");
-        m_versionCheckLabel->setText(QStringLiteral("版本检查失败：未找到最新版本"));
+        m_versionCheckLabel->setText(QStringLiteral("版本检查失败：未找到最新版本（点我重试）"));
         return;
     }
 
