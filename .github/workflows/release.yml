@@ -18,19 +18,21 @@ jobs:
     runs-on: windows-latest
     env:
       QT_VERSION: '6.8.3'
+      MINGW_TOOL: 'tools_mingw1310'    # Qt 6.8.3 配套的 GCC 13.1.0
       BUILD_TYPE: Release
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0        # 完整 git 历史，用于版本号提取
+          fetch-depth: 0                # 完整 git 历史，GetGitVersion.cmake 需要
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.4.0
         with:
           version: ${{ env.QT_VERSION }}
           arch: 'win64_mingw'
+          tools: ${{ env.MINGW_TOOL }}  # ★ 装 Qt 自带的 MinGW
           cache: true
 
       # ---------- 确定版本号 ----------
@@ -46,23 +48,36 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $v"
 
-      - name: Diagnose Qt layout
+      # ---------- 定位 Qt MinGW ----------
+      - name: Locate Qt MinGW
+        id: mingw
         shell: pwsh
         run: |
-          Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
-          Write-Host "--- grandparent ---"
-          Get-ChildItem "$env:QT_ROOT_DIR\..\.." -ErrorAction SilentlyContinue | Format-Table Name
-          Write-Host "--- find mingw*_64 ---"
-          Get-ChildItem "$env:QT_ROOT_DIR\..\.." -Recurse -Directory -Filter 'mingw*_64' -Depth 3 -ErrorAction SilentlyContinue | Select-Object FullName
+          $mingwRoot = "$env:QT_ROOT_DIR\..\..\Tools"
+          $mingwDir = Get-ChildItem $mingwRoot -Directory -Filter 'mingw*_64' `
+                      -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $mingwDir) {
+            Write-Host "::error::Qt MinGW not found under $mingwRoot"
+            Get-ChildItem $mingwRoot -ErrorAction SilentlyContinue | Format-Table
+            exit 1
+          }
+          $mingwBin = "$($mingwDir.FullName)\bin"
+          Write-Host "Using MinGW: $mingwBin"
+          & "$mingwBin\g++.exe" --version | Select-Object -First 1
+          "bin=$mingwBin" >> $env:GITHUB_OUTPUT
 
-      # ---------- 配置 & 构建 ----------
+      # ---------- 配置 ----------
       - name: Configure
-        run: >
-          cmake -B build -S .
-          -G Ninja
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          "-DXJTU_VERSION=${{ steps.ver.outputs.version }}"
+        shell: pwsh
+        run: |
+          cmake -B build -S . `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+            -DCMAKE_C_COMPILER="${{ steps.mingw.outputs.bin }}\gcc.exe" `
+            -DCMAKE_CXX_COMPILER="${{ steps.mingw.outputs.bin }}\g++.exe" `
+            "-DXJTU_VERSION=${{ steps.ver.outputs.version }}"
 
+      # ---------- 构建 ----------
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
@@ -74,6 +89,31 @@ jobs:
           Copy-Item -Path build\bin\* -Destination portable\ -Recurse -Force
           # 无 BOM 的空 JSON —— 便携版标记
           [System.IO.File]::WriteAllText("$PWD\portable\config.json", "{}")
+
+      - name: Verify portable runtime DLLs
+        shell: pwsh
+        run: |
+          $required = @(
+            'libgcc_s_seh-1.dll',
+            'libstdc++-6.dll',
+            'libwinpthread-1.dll',
+            'Qt6Core.dll',
+            'Qt6Gui.dll',
+            'Qt6Widgets.dll',
+            'Qt6Network.dll',
+            'Qt6Svg.dll',
+            'platforms\qwindows.dll'
+          )
+          $missing = @()
+          foreach ($f in $required) {
+            if (-not (Test-Path "portable\$f")) { $missing += $f }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Host "::error::Missing runtime files in portable package:"
+            $missing | ForEach-Object { Write-Host "  - $_" }
+            exit 1
+          }
+          Write-Host "All required runtime DLLs present."
 
       - name: Zip portable
         shell: pwsh
