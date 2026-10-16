@@ -208,6 +208,6 @@ void MainWindow::onPollTimerApplyBtnClicked() {
         .arg(formatDuration(static_cast<qint64>(interval) / 1000));
     appendLog("SUCCESS", successTip);
     QMessageBox::information(this, "成功", successTip);
-    m_pollTimerIntervalEdit->setPlaceholderText(QString::number(interval));
+    m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(interval)));
     m_pollTimerIntervalEdit->setText(QString::number(interval));
 }

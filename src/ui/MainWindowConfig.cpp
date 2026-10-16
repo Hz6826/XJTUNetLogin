@@ -25,7 +25,7 @@ void MainWindow::loadConfigToUi() {
     m_filterHttpCheck->setChecked(m_config.filterHttpLog);
     m_detailTab->setCurrentIndex(m_config.currentTab);
 
-    m_pollTimerIntervalEdit->setPlaceholderText(QString::number(m_config.pollTimerIntervalMs));
+    m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(m_config.pollTimerIntervalMs)));
 }
 
 void MainWindow::syncAccountFieldsToConfig() {

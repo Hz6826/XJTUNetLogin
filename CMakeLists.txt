@@ -42,10 +42,8 @@ qt_add_executable(XJTUNetLogin
         src/ui/MainWindowLog.cpp
         src/ui/MainWindowConfig.cpp
         src/ui/MainWindowAuth.cpp
-        src/ui/MainWIndowInfo.cpp
-        # 后续逐步加入：
-        # src/core/AutoLoginService.cpp
-        # src/platform/WindowsPlatformHelper.cpp
+        src/ui/MainWindowInfo.cpp
+        src/net/SrunHttpUtils.cpp
 )
 
 if (WIN32)

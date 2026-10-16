@@ -1,13 +1,10 @@
 #include "net/SrunClient.h"
 #include "net/SrunCrypto.h"
+#include "net/SrunHttpUtils.h"
 
 #include <QDebug>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonParseError>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QRegularExpression>
 #include <QTimer>
 #include <QUrl>
 
@@ -17,7 +14,7 @@
 
 SrunClient::SrunClient(QObject *parent)
     : QObject(parent)
-      , m_nam(new QNetworkAccessManager(this)) {
+    , m_nam(new QNetworkAccessManager(this)) {
 }
 
 // ============================================================
@@ -37,62 +34,8 @@ void SrunClient::setStage(const QString &stage) {
 // 辅助
 // ============================================================
 
-QJsonObject SrunClient::parseJsonOrJsonp(const QByteArray &data, bool *ok) {
-    QJsonParseError err;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &err);
-    if (err.error == QJsonParseError::NoError) {
-        *ok = true;
-        return doc.object();
-    }
-
-    const QString text = QString::fromUtf8(data);
-    static const QRegularExpression re(R"(\((.*)\))",
-                                       QRegularExpression::DotMatchesEverythingOption);
-    const QRegularExpressionMatch match = re.match(text);
-    if (match.hasMatch()) {
-        const QString inner = match.captured(1);
-        QJsonParseError err2;
-        const QJsonDocument doc2 = QJsonDocument::fromJson(inner.toUtf8(), &err2);
-        if (err2.error == QJsonParseError::NoError) {
-            *ok = true;
-            return doc2.object();
-        }
-    }
-
-    *ok = false;
-    return {};
-}
-
-QString SrunClient::getUAHeader() {
-    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
-}
-
-void SrunClient::applyCommonHeaders(QNetworkRequest &req) {
-    req.setHeader(QNetworkRequest::UserAgentHeader, getUAHeader());
-    req.setRawHeader("Accept", "application/json, text/javascript, */*; q=0.01");
-    req.setRawHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-    req.setRawHeader("X-Requested-With", "XMLHttpRequest");
-    req.setRawHeader("Referer", (m_baseUrl + QString("/srun_portal_pc")).toUtf8());
-    req.setRawHeader("Origin", m_baseUrl.toUtf8());
-}
-
-QString SrunClient::previewBody(const QByteArray &data, int maxLen) {
-    QString text = QString::fromUtf8(data);
-    if (text.size() <= maxLen) {
-        return text;
-    }
-    return text.left(maxLen) + "...";
-}
-
-QString SrunClient::buildQuery(const QList<QPair<QString, QString> > &params) {
-    QStringList parts;
-    parts.reserve(params.size());
-    for (const auto &kv: params) {
-        const QString ek = QString::fromUtf8(QUrl::toPercentEncoding(kv.first));
-        const QString ev = QString::fromUtf8(QUrl::toPercentEncoding(kv.second));
-        parts.append(ek + '=' + ev);
-    }
-    return parts.join('&');
+void SrunClient::applyCommonHeaders(QNetworkRequest &req) const {
+    SrunHttpUtils::applyCommonHeaders(req, m_baseUrl);
 }
 
 void SrunClient::emitLoginSucceeded(const QJsonObject &info) {
@@ -113,49 +56,6 @@ void SrunClient::emitLogoutSucceeded(const QJsonObject &info) {
 void SrunClient::emitLogoutFailed(const QString &msg, const QJsonObject &raw) {
     m_busy = false;
     emit logoutFailed(msg, raw);
-}
-
-void SrunClient::doPeriodicPoll()
-{
-    if (m_busy) return;
-
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
-    QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
-    applyCommonHeaders(req);
-    QNetworkReply *reply = m_nam->get(req);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        onPeriodicPollFinished(reply);
-    });
-}
-
-void SrunClient::onPeriodicPollFinished(QNetworkReply *reply)
-{
-    const QByteArray data = reply->readAll();
-    const auto netErr = reply->error();
-    reply->deleteLater();
-
-    if (m_busy) return;
-
-    if (netErr != QNetworkReply::NoError) {
-        emit onlineStatusRefreshed(false, {});
-        return;
-    }
-
-    bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
-    if (!ok) {
-        emit onlineStatusRefreshed(false, {});
-        return;
-    }
-
-    const QString err = obj.value("error").toString();
-    if (err == "ok") {
-        emit onlineStatusRefreshed(true, obj);
-    } else if (err == "not_online_error") {
-        emit onlineStatusRefreshed(false, {});
-    }
-    // 其他错误：静默丢弃，等下一轮
 }
 
 // ============================================================
@@ -231,10 +131,10 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    if (!silent) log("HTTP", "← 在线信息响应: " + previewBody(data, 300));
+    if (!silent) log("HTTP", "← 在线信息响应: " + SrunHttpUtils::previewBody(data, 300));
 
     bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (!ok) {
         if (!silent) {
             log("ERROR", "在线信息响应解析失败");
@@ -258,7 +158,7 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         if (!silent) {
             log("INFO", QString("当前在线: user=%1, ip=%2")
                 .arg(obj.value("user_name").toString(),
-                    obj.value("online_ip").toString()));
+                     obj.value("online_ip").toString()));
             emit onlineInfoReceived(obj);
         }
         emit onlineStatusRefreshed(true, obj);
@@ -280,14 +180,19 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
     }
 }
 
+// ============================================================
+// 外网连通性检测
+// ============================================================
+
 void SrunClient::checkInternet() {
     log("STEP", "→ 检查外网连通性");
 
     const QString testUrl("http://firefox-portal-detection.com/generate_204");
     QNetworkRequest req{QUrl(testUrl)};
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
-    req.setTransferTimeout(5000);  // 5s
-    req.setHeader(QNetworkRequest::UserAgentHeader, getUAHeader());
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::ManualRedirectPolicy);
+    req.setTransferTimeout(5000);
+    req.setHeader(QNetworkRequest::UserAgentHeader, SrunHttpUtils::getUAHeader());
     QNetworkReply *reply = m_nam->get(req);
 
     log("HTTP", "GET " + testUrl);
@@ -297,11 +202,55 @@ void SrunClient::checkInternet() {
     });
 }
 
+void SrunClient::onCheckInternetFinished(QNetworkReply *reply) {
+    reply->readAll();
+    const auto netErr = reply->error();
+    const QString netErrStr = reply->errorString();
+    const int statusCode = reply->attribute(
+        QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    reply->deleteLater();
+
+    if (netErr != QNetworkReply::NoError) {
+        emit internetUnreachable(netErrStr);
+        return;
+    }
+
+    if (statusCode == 204) {
+        emit internetReachable();
+        return;
+    }
+
+    const QByteArray locationRaw = reply->rawHeader("Location");
+    if (!locationRaw.isEmpty()) {
+        const QUrl locUrl = QUrl::fromEncoded(locationRaw);
+        if (locUrl.isValid() && !locUrl.host().isEmpty()) {
+            QString newBase = locUrl.scheme() + "://" + locUrl.host();
+            if (locUrl.port() != -1 && locUrl.port() != 80) {
+                newBase += ":" + QString::number(locUrl.port());
+            }
+
+            if (newBase != m_baseUrl) {
+                m_baseUrl = newBase;
+                log("INFO", "检测到 captive portal，服务器地址更新为：" + m_baseUrl);
+            }
+            emit captivePortalDetected(m_baseUrl);
+            return;
+        }
+    }
+
+    const QString reason = QString("HTTP %1（可能被 captive portal 劫持）").arg(statusCode);
+    emit internetUnreachable(reason);
+}
+
+// ============================================================
+// 周期性轮询
+// ============================================================
+
 void SrunClient::startPolling(int intervalMs) {
     if (!m_pollTimer) {
         m_pollTimer = new QTimer(this);
         connect(m_pollTimer, &QTimer::timeout,
-            this, &SrunClient::doPeriodicPoll);
+                this, &SrunClient::doPeriodicPoll);
     }
     m_pollTimer->start(intervalMs);
     log("INFO", QString("在线轮询已启动，间隔 %1 ms").arg(intervalMs));
@@ -322,50 +271,45 @@ void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
     }
 }
 
-void SrunClient::onCheckInternetFinished(QNetworkReply *reply)
-{
+void SrunClient::doPeriodicPoll() {
+    if (m_busy) return;
+
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
+    QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
+    applyCommonHeaders(req);
+    QNetworkReply *reply = m_nam->get(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        onPeriodicPollFinished(reply);
+    });
+}
+
+void SrunClient::onPeriodicPollFinished(QNetworkReply *reply) {
     const QByteArray data = reply->readAll();
     const auto netErr = reply->error();
-    const QString netErrStr = reply->errorString();
-    const int statusCode = reply->attribute(
-        QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
-    // 网络层错误（DNS 失败、超时、连接拒绝等）
+    if (m_busy) return;
+
     if (netErr != QNetworkReply::NoError) {
-        emit internetUnreachable(netErrStr);
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 
-    // 204 = 真通畅
-    if (statusCode == 204) {
-        emit internetReachable();
+    bool ok = false;
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
+    if (!ok) {
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 
-    // 302 或 200：可能是 captive portal
-    const QByteArray locationRaw = reply->rawHeader("Location");
-    if (!locationRaw.isEmpty()) {
-        const QUrl locUrl = QUrl::fromEncoded(locationRaw);
-        if (locUrl.isValid() && !locUrl.host().isEmpty()) {
-            // 提取 scheme://host[:port]
-            QString newBase = locUrl.scheme() + "://" + locUrl.host();
-            if (locUrl.port() != -1 && locUrl.port() != 80) {
-                newBase += ":" + QString::number(locUrl.port());
-            }
-
-            if (newBase != m_baseUrl) {
-                m_baseUrl = newBase;
-                log("INFO", "检测到 captive portal，服务器地址更新为：" + m_baseUrl);
-            }
-            emit captivePortalDetected(m_baseUrl);
-            return;
-        }
+    const QString err = obj.value("error").toString();
+    if (err == "ok") {
+        emit onlineStatusRefreshed(true, obj);
+    } else if (err == "not_online_error") {
+        emit onlineStatusRefreshed(false, {});
     }
-
-    // 其他非 204 且无可用 Location
-    const QString reason = QString("HTTP %1（可能被 captive portal 劫持）").arg(statusCode);
-    emit internetUnreachable(reason);
+    // 其他错误：静默丢弃，等下一轮
 }
 
 // ============================================================
@@ -376,13 +320,13 @@ void SrunClient::requestChallenge() {
     setStage("获取令牌");
     log("STEP", "→ 请求 challenge");
 
-    const QList<QPair<QString, QString> > params = {
+    const QList<QPair<QString, QString>> params = {
         {"username", m_username + m_domain},
         {"ip", m_ip},
     };
 
     const QString fullUrl = QString("%1/cgi-bin/get_challenge?%2")
-            .arg(m_baseUrl, buildQuery(params));
+            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -407,10 +351,10 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← challenge 响应: " + previewBody(data));
+    log("HTTP", "← challenge 响应: " + SrunHttpUtils::previewBody(data));
 
     bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "challenge 响应解析失败");
         emitLoginFailed("challenge 响应解析失败", {});
@@ -462,7 +406,7 @@ void SrunClient::requestAuth() {
     log("INFO", "hmd5 = " + hmd5);
     log("INFO", "chksum = " + chksum);
 
-    const QList<QPair<QString, QString> > params = {
+    const QList<QPair<QString, QString>> params = {
         {"action", "login"},
         {"username", fullUser},
         {"password", "{MD5}" + hmd5},
@@ -478,7 +422,7 @@ void SrunClient::requestAuth() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(m_baseUrl, buildQuery(params));
+            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -503,10 +447,10 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← auth 响应: " + previewBody(data, 300));
+    log("HTTP", "← auth 响应: " + SrunHttpUtils::previewBody(data, 300));
 
     bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "auth 响应解析失败");
         emitLoginFailed("auth 响应解析失败", {});
@@ -519,12 +463,8 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
 
     if (!success) {
         QString errMsg = obj.value("error_msg").toString();
-        if (errMsg.isEmpty()) {
-            errMsg = obj.value("ploy_msg").toString();
-        }
-        if (errMsg.isEmpty()) {
-            errMsg = err;
-        }
+        if (errMsg.isEmpty()) errMsg = obj.value("ploy_msg").toString();
+        if (errMsg.isEmpty()) errMsg = err;
         log("ERROR", "认证失败: " + errMsg);
         emitLoginFailed(errMsg, obj);
         return;
@@ -557,7 +497,7 @@ void SrunClient::requestLogout() {
     setStage("注销中");
     log("STEP", "→ 请求注销");
 
-    const QList<QPair<QString, QString> > params = {
+    const QList<QPair<QString, QString>> params = {
         {"action", "logout"},
         {"username", m_username + m_domain},
         {"ip", m_ip},
@@ -565,7 +505,7 @@ void SrunClient::requestLogout() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(m_baseUrl, buildQuery(params));
+            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + fullUrl);
 
@@ -590,10 +530,10 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← logout 响应: " + previewBody(data, 300));
+    log("HTTP", "← logout 响应: " + SrunHttpUtils::previewBody(data, 300));
 
     bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (!ok) {
         log("ERROR", "logout 响应解析失败");
         emitLogoutFailed("logout 响应解析失败", {});
@@ -603,12 +543,8 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
     const QString err = obj.value("error").toString();
     if (err != "ok") {
         QString errMsg = obj.value("error_msg").toString();
-        if (errMsg.isEmpty()) {
-            errMsg = obj.value("ploy_msg").toString();
-        }
-        if (errMsg.isEmpty()) {
-            errMsg = err;
-        }
+        if (errMsg.isEmpty()) errMsg = obj.value("ploy_msg").toString();
+        if (errMsg.isEmpty()) errMsg = err;
         log("ERROR", "注销请求被拒绝: " + errMsg);
         emitLogoutFailed(errMsg, obj);
         return;
@@ -641,9 +577,7 @@ void SrunClient::pollOnlineStatus(int maxChecks, const QString &successError,
     m_pollCallback = std::move(callback);
 
     // 首次延迟，等服务器把状态写完
-    QTimer::singleShot(kPollIntervalMs, this, [this] {
-        doPollStep();
-    });
+    QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
 }
 
 void SrunClient::doPollStep() {
@@ -673,17 +607,17 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
         log("WARN", "轮询网络错误: " + netErrStr);
         // 网络错误不算成功也不算失败，继续重试
         if (m_pollCheckCount < m_pollMaxChecks) {
-            QTimer::singleShot(kPollIntervalMs, this, [this] { doPollStep(); });
+            QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
         } else {
             m_pollCallback(false, {});
         }
         return;
     }
 
-    log("HTTP", "← 在线信息响应: " + previewBody(data, 200));
+    log("HTTP", "← 在线信息响应: " + SrunHttpUtils::previewBody(data, 200));
 
     bool ok = false;
-    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (ok) {
         const QString err = obj.value("error").toString();
         if (err == m_pollSuccessError) {
@@ -693,7 +627,7 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
     }
 
     if (m_pollCheckCount < m_pollMaxChecks) {
-        QTimer::singleShot(kPollIntervalMs, this, [this] { doPollStep(); });
+        QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
     } else {
         m_pollCallback(false, obj);
     }

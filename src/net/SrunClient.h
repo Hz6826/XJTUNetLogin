@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QString>
+#include <functional>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -16,7 +17,7 @@ class SrunClient : public QObject {
 public:
     explicit SrunClient(QObject *parent = nullptr);
 
-    // 对外调用（全部异步，立即返回）
+    // ---- 对外调用（全部异步，立即返回）----
     void login(const QString &username,
                const QString &password,
                const QString &acId,
@@ -27,30 +28,22 @@ public:
                 const QString &domain);
 
     void queryOnline(bool silent = false);
-
     void checkInternet();
 
     void startPolling(int intervalMs = 30000);
     void stopPolling();
-
     void applyPollingIntervalAndRestart(int intervalMs);
 
 signals:
-    // ---- 通用日志（未来 textarea 直接连这个）----
     // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR" / "SUCCESS"
     void logMessage(const QString &level, const QString &message);
-
-    // ---- 阶段变化（状态栏/标题栏用）----
     void stageChanged(const QString &stage);
 
-    // ---- 业务信号 ----
     void loginSucceeded(const QJsonObject &onlineInfo);
-    void loginFailed(const QString &errorMessage,
-                     const QJsonObject &rawResponse);
+    void loginFailed(const QString &errorMessage, const QJsonObject &rawResponse);
 
     void logoutSucceeded(const QJsonObject &rawResponse);
-    void logoutFailed(const QString &errorMessage,
-                      const QJsonObject &rawResponse);
+    void logoutFailed(const QString &errorMessage, const QJsonObject &rawResponse);
 
     void onlineInfoReceived(const QJsonObject &onlineInfo);
     void onlineQueryFailed(const QString &errorMessage);
@@ -59,48 +52,37 @@ signals:
     void internetUnreachable(const QString &reason);
 
     void onlineStatusRefreshed(bool online, const QJsonObject &info);
-
     void captivePortalDetected(const QString &newBaseUrl);
 
 private:
-    // ---------- 内部异步步骤 ----------
+    // ---------- 登录/登出流程 ----------
     void requestChallenge();
     void onChallengeFinished(QNetworkReply *reply);
-
     void requestAuth();
     void onAuthFinished(QNetworkReply *reply);
-
     void requestLogout();
     void onLogoutFinished(QNetworkReply *reply);
 
+    // ---------- 查询/轮询 ----------
     using PollCallback = std::function<void(bool success, const QJsonObject &obj)>;
-
     void pollOnlineStatus(int maxChecks, const QString &successError, PollCallback callback);
     void doPollStep();
     void onPollStepFinished(QNetworkReply *reply);
 
     void onQueryOnlineFinished(QNetworkReply *reply, bool silent);
-
     void onCheckInternetFinished(QNetworkReply *reply);
-
+    void doPeriodicPoll();
     void onPeriodicPollFinished(QNetworkReply *reply);
 
     // ---------- 辅助 ----------
     void log(const QString &level, const QString &msg);
     void setStage(const QString &stage);
-    void applyCommonHeaders(QNetworkRequest &req);
-
-    static QJsonObject parseJsonOrJsonp(const QByteArray &data, bool *ok);
-    static QString getUAHeader();
-    static QString previewBody(const QByteArray &data, int maxLen = 200);
-    static QString buildQuery(const QList<QPair<QString, QString>> &params);
+    void applyCommonHeaders(QNetworkRequest &req) const; // 封装 utils
 
     void emitLoginSucceeded(const QJsonObject &info);
     void emitLoginFailed(const QString &msg, const QJsonObject &raw);
     void emitLogoutSucceeded(const QJsonObject &info);
     void emitLogoutFailed(const QString &msg, const QJsonObject &raw);
-
-    void doPeriodicPoll();
 
     // ---------- 状态 ----------
     QNetworkAccessManager *m_nam = nullptr;
@@ -122,7 +104,7 @@ private:
     QTimer *m_pollTimer = nullptr;
     bool m_busy = false;
 
-    static constexpr int kPollIntervalMs = 1000;
+    static constexpr int kVerifyPollIntervalMs = 1000;
     QString m_baseUrl = "http://10.6.21.2";
 };
 
