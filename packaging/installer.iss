@@ -8,11 +8,11 @@
 #endif
 
 #ifndef SourceDir
-  #define SourceDir "..\..\build\bin"
+  #define SourceDir "..\build\bin"
 #endif
 
 #ifndef OutputDir
-  #define OutputDir "..\..\dist"
+  #define OutputDir "..\dist"
 #endif
 
 #define MyAppName       "仙交网络助手"
@@ -48,8 +48,8 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-SetupIconFile=..\..\resources\icons\app\app.ico
-LicenseFile=..\..\LICENSE
+SetupIconFile=..\resources\icons\app\app.ico
+LicenseFile=..\LICENSE
 MinVersion=10.0
 
 [Languages]

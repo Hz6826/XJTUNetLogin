@@ -52,7 +52,7 @@ jobs:
           cmake -B build -S .
           -G Ninja
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          -DXJTU_VERSION=${{ steps.ver.outputs.version }}
+          "-DXJTU_VERSION=${{ steps.ver.outputs.version }}"
 
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
