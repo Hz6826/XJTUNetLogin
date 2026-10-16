@@ -44,7 +44,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     if (!m_config.windowGeometry.isEmpty()) {
         restoreGeometry(m_config.windowGeometry);
     }
-    setWindowTitle(QString("%1 v.%2 by %3")
+    setWindowTitle(QString("%1 v%2 by %3")
                        .arg(AppInfo::Description, AppInfo::Version, AppInfo::Author));
 }
 
