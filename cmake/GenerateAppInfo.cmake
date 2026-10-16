@@ -1,7 +1,7 @@
 # 输入：
 #   SRC              - 源码根目录
 #   OUT              - 输出的 AppInfo.h
-#   VERSION          - 项目版本
+#   VERSION          - 项目版本（可能是带后缀的完整版，如 1.0.0-rc.3）
 #   NAME             - 项目名
 #   GIT_VERSION_FILE - 由 GetGitVersion.cmake 生成的脚本
 #   BUILD_TYPE       - CMake 的 CMAKE_BUILD_TYPE（可能为空）
@@ -12,7 +12,7 @@ if (EXISTS "${GIT_VERSION_FILE}")
     include("${GIT_VERSION_FILE}")
 endif ()
 
-set(PROJECT_VERSION "${VERSION}")
+set(XJTU_VERSION    "${VERSION}")
 set(PROJECT_NAME    "${NAME}")
 
 # 单配置生成器（Ninja / Makefile）直接读 CMAKE_BUILD_TYPE；

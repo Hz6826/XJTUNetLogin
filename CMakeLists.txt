@@ -59,6 +59,10 @@ qt_add_executable(XJTUNetLogin
         src/ui/MainWindowVersion.cpp
 )
 
+set_target_properties(XJTUNetLogin PROPERTIES
+        WIN32_EXECUTABLE $<NOT:$<CONFIG:Debug>>
+)
+
 # ---------- 生成 AppInfo.h（含 Git 信息） ----------
 set(GIT_VERSION_FILE  ${CMAKE_BINARY_DIR}/generated/git_version.cmake)
 set(APPINFO_GENERATED ${CMAKE_BINARY_DIR}/generated/AppInfo.h)
