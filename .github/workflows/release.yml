@@ -46,6 +46,15 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $v"
 
+      - name: Diagnose Qt layout
+        shell: pwsh
+        run: |
+          Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
+          Write-Host "--- grandparent ---"
+          Get-ChildItem "$env:QT_ROOT_DIR\..\.." -ErrorAction SilentlyContinue | Format-Table Name
+          Write-Host "--- find mingw*_64 ---"
+          Get-ChildItem "$env:QT_ROOT_DIR\..\.." -Recurse -Directory -Filter 'mingw*_64' -Depth 3 -ErrorAction SilentlyContinue | Select-Object FullName
+
       # ---------- 配置 & 构建 ----------
       - name: Configure
         run: >

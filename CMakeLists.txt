@@ -133,6 +133,7 @@ if (WIN32)
                 --no-translations
                 --no-system-d3d-compiler
                 --no-opengl-sw
+                --compiler-runtime
                 "$<TARGET_FILE:XJTUNetLogin>"
                 COMMENT "Running windeployqt to copy Qt runtime")
     else ()
