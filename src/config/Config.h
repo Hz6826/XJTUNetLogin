@@ -8,6 +8,12 @@
 #include <QJsonObject>
 #include <QString>
 
+enum class CloseAction : int {
+    Ask            = 0,
+    MinimizeToTray = 1,
+    Quit           = 2,
+};
+
 struct Config {
     // ---------- auth 分组 ----------
     QString username;
@@ -24,8 +30,8 @@ struct Config {
     bool logExpanded = true;
     bool filterHttpLog = true;
     int currentTab = 0;
-    // 关闭行为：0=每次询问, 1=最小化到托盘, 2=退出程序
-    int closeAction = 0;
+    // 关闭行为
+    CloseAction closeAction = CloseAction::Ask;
     QByteArray windowGeometry;
     int expandedWindowHeight = -1;
 

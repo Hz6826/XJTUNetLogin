@@ -12,6 +12,7 @@
 #include "ThemeUtils.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -236,6 +237,7 @@ void MainWindow::buildUiSettingsPanel(QWidget *parent) {
     auto *uiSettingsLayout = new QVBoxLayout(parent);
     buildUiAutoLogin(uiSettingsLayout);
     buildUiPollingSetting(uiSettingsLayout);
+    buildUiMiscSetting(uiSettingsLayout);
 
     uiSettingsLayout->addStretch();
 }
@@ -283,6 +285,32 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
     pollingLayout->addWidget(m_pollTimerApplyBtn);
 
     uiSettingsLayout->addWidget(pollingGroup);
+}
+
+void MainWindow::buildUiMiscSetting(QVBoxLayout *uiSettingsLayout) {
+    auto *miscGroup = new QGroupBox("杂项");
+    auto *miscLayout = new QHBoxLayout(miscGroup);
+
+    m_defaultCloseActionCombo = new QComboBox;
+
+    auto *defaultCloseActionLabel = new QLabel("关闭按钮行为: ");
+    miscLayout->addWidget(defaultCloseActionLabel);
+
+    m_defaultCloseActionCombo->addItem("每次询问",
+    static_cast<int>(CloseAction::Ask));
+    m_defaultCloseActionCombo->addItem("最小化到托盘",
+        static_cast<int>(CloseAction::MinimizeToTray));
+    m_defaultCloseActionCombo->addItem("退出程序",
+        static_cast<int>(CloseAction::Quit));
+
+    const int idx = m_defaultCloseActionCombo->findData(
+        static_cast<int>(CloseAction::Ask));
+    m_defaultCloseActionCombo->setCurrentIndex(idx);
+
+    miscLayout->addWidget(m_defaultCloseActionCombo);
+    miscLayout->addStretch();
+
+    uiSettingsLayout->addWidget(miscGroup);
 }
 
 void MainWindow::buildUiAboutPanel(QWidget *parent) {

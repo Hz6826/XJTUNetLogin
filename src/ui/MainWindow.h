@@ -19,6 +19,7 @@ class QCloseEvent;
 class QVBoxLayout;
 class QTimer;
 class QTabWidget;
+class QComboBox;
 
 enum class OnlineState : int { Unknown, Offline, Online, Busy };
 
@@ -67,6 +68,9 @@ private:
     void buildUiAuthForm(QVBoxLayout *mainLayout);
     void buildUiAutoLogin(QVBoxLayout *uiSettingsLayout);
     void buildUiPollingSetting(QVBoxLayout *uiSettingsLayout);
+
+    void buildUiMiscSetting(QVBoxLayout *uiSettingsLayout);
+
     void buildUiOpBtnRow(QVBoxLayout *mainLayout);
     void buildUiInfoArea(QVBoxLayout *mainLayout);
     void buildUiLogPanel(QWidget *parent);
@@ -167,12 +171,14 @@ private:
     QLineEdit *m_pollTimerIntervalEdit = nullptr;
     QPushButton *m_pollTimerApplyBtn = nullptr;
 
+    QComboBox *m_defaultCloseActionCombo = nullptr;
+
     QLabel *m_versionCheckLabel = nullptr;
 
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;
     static constexpr int kStatusRowHeight    = 30;
-    static constexpr int kDetailTabMinHeight = 260;
+    static constexpr int kDetailTabMinHeight = 300;
     static constexpr int kWindowMinWidth     = 360;
     static constexpr int kWindowMinHeight    =
         kAuthFormHeight + kOpBtnRowHeight + kStatusRowHeight + kDetailTabMinHeight;

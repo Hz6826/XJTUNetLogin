@@ -104,7 +104,8 @@ Config Config::fromJson(const QJsonObject &root) {
     c.logExpanded = uiCfg.value("logExpanded").toBool(true);
     c.filterHttpLog = uiCfg.value("filterHttpLog").toBool(true);
     c.currentTab = uiCfg.value("currentTab").toInt(0);
-    c.closeAction = uiCfg.value("closeAction").toInt(0);
+    int closeActionRaw = uiCfg.value("closeAction").toInt(0);
+    c.closeAction = static_cast<CloseAction>(closeActionRaw);
     c.windowGeometry = QByteArray::fromBase64(
         uiCfg.value("windowGeometry").toString().toLatin1());
     c.expandedWindowHeight = uiCfg.value("expandedWindowHeight").toInt(-1);
@@ -128,7 +129,7 @@ QJsonObject Config::toJson() const {
     uiCfg["logExpanded"] = logExpanded;
     uiCfg["filterHttpLog"] = filterHttpLog;
     uiCfg["currentTab"] = currentTab;
-    uiCfg["closeAction"] = closeAction;
+    uiCfg["closeAction"] = static_cast<int>(closeAction);
     uiCfg["windowGeometry"] = QString::fromLatin1(
         windowGeometry.toBase64());
     uiCfg["expandedWindowHeight"] = expandedWindowHeight;

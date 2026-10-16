@@ -19,6 +19,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QToolTip>
+#include <QComboBox>
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     : QMainWindow(parent)
@@ -62,11 +63,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
 
     switch (m_config.closeAction) {
-        case 1:
+        case CloseAction::MinimizeToTray:
             event->ignore();
             hide();
             return;
-        case 2:
+        case CloseAction::Quit:
             saveWindowGeometryToConfig();
             event->accept();
             return;
@@ -94,14 +95,14 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
 
     const bool remember = rememberBox->isChecked();
-    const int action = (clicked == minBtn) ? 1 : 2;
+    const CloseAction action = (clicked == minBtn) ? CloseAction::MinimizeToTray : CloseAction::Quit;
 
     if (remember) {
         m_config.closeAction = action;
         saveConfigSilently();
     }
 
-    if (action == 1) {
+    if (action == CloseAction::MinimizeToTray) {
         event->ignore();
         hide();
     } else {
@@ -232,7 +233,9 @@ void MainWindow::connectSignals() {
     connect(m_autoLoginCheck, &QCheckBox::toggled,
             this, &MainWindow::onAutoLoginToggled);
     connect(m_pollTimerApplyBtn, &QPushButton::clicked,
-                   this, &MainWindow::onPollTimerApplyBtnClicked);
+            this, &MainWindow::onPollTimerApplyBtnClicked);
+    connect(m_defaultCloseActionCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &MainWindow::saveConfigSilently);
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);

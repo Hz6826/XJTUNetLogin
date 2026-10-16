@@ -7,6 +7,7 @@
 #include "platform/AutoStart.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QLayout>
 #include <QLineEdit>
 #include <QTabWidget>
@@ -26,6 +27,11 @@ void MainWindow::loadConfigToUi() {
     m_detailTab->setCurrentIndex(m_config.currentTab);
 
     m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(m_config.pollTimerIntervalMs)));
+
+    const int idx = m_defaultCloseActionCombo->findData(
+        static_cast<int>(m_config.closeAction));
+    if (idx >= 0)
+        m_defaultCloseActionCombo->setCurrentIndex(idx);
 }
 
 void MainWindow::syncAccountFieldsToConfig() {
@@ -43,6 +49,9 @@ bool MainWindow::saveConfigSilently() {
 
     m_config.filterHttpLog = m_filterHttpCheck->isChecked();
     m_config.currentTab    = m_detailTab->currentIndex();
+
+    m_config.closeAction   = static_cast<CloseAction>(
+        m_defaultCloseActionCombo->currentData().toInt());
 
     return m_config.save();
 }
