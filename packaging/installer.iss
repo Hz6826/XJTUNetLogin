@@ -48,7 +48,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-SetupIconFile=..\resources\icons\app\app.ico
+SetupIconFile=..\resources\windows\app.ico
 LicenseFile=..\LICENSE
 MinVersion=10.0
 
