@@ -17,7 +17,7 @@ jobs:
   build:
     runs-on: windows-latest
     env:
-      QT_VERSION: '6.11.2'       # 与本地开发环境保持一致
+      QT_VERSION: '6.8.3'
       BUILD_TYPE: Release
 
     steps:
