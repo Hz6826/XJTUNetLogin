@@ -107,6 +107,7 @@ void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
 
     m_saveBtn = new QPushButton("保存账户信息");
     m_saveBtn->setToolTip("登录成功时自动保存配置");
+    m_saveBtn->installEventFilter(this);
     buttonRow->addWidget(m_saveBtn, 1);
 
     buttonRowWrapper->setFixedHeight(kOpBtnRowHeight);
