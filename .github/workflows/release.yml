@@ -72,7 +72,7 @@ jobs:
         run: |
           cmake -B build -S . `
             -G Ninja `
-            -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_C_COMPILER="${{ steps.mingw.outputs.bin }}\gcc.exe" `
             -DCMAKE_CXX_COMPILER="${{ steps.mingw.outputs.bin }}\g++.exe" `
             "-DXJTU_VERSION=${{ steps.ver.outputs.version }}"
