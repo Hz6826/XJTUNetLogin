@@ -7,6 +7,7 @@
 #include <QNetworkRequest>
 #include <QTimer>
 #include <QUrl>
+#include <QNetworkProxy>
 
 // ============================================================
 // 构造
@@ -15,6 +16,7 @@
 SrunClient::SrunClient(QObject *parent)
     : QObject(parent)
     , m_nam(new QNetworkAccessManager(this)) {
+    m_nam->setProxy(QNetworkProxy::NoProxy);
 }
 
 // ============================================================
@@ -268,6 +270,7 @@ void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
     if (m_pollTimer) {
         m_pollTimer->setInterval(intervalMs);
         m_pollTimer->start();
+        doPeriodicPoll();  // 点击按钮后立即执行一次
     }
 }
 

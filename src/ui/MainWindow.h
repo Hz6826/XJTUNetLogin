@@ -31,6 +31,7 @@ public:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void setForceQuit(bool force);
     const Config &config() const;
+    bool isLoginFailedNotifySuppressed() const;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -124,6 +125,7 @@ private:
     bool m_pendingAutoLogin = false;
     int m_expandedWindowHeight = -1;
     bool m_firstShowDone = false;
+    int m_autoLoginFailedTrials = 0;
 
     QNetworkAccessManager *m_versionNam = nullptr;
     bool m_hasNewVersion = false;
@@ -184,6 +186,8 @@ private:
         kAuthFormHeight + kOpBtnRowHeight + kStatusRowHeight + kDetailTabMinHeight;
     static constexpr int kWindowMaxWidth     = 500;
     static constexpr int kWindowMaxHeight    = kWindowMinHeight + 200;
+
+    static constexpr int kMaxAutoLoginFailNotifyCount = 3;
 
 signals:
     void onlineStateChanged(OnlineState state);

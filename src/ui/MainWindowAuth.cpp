@@ -69,6 +69,7 @@ void MainWindow::onLogMessage(const QString &level, const QString &msg) {
 }
 
 void MainWindow::onLoginSucceeded(const QJsonObject &info) {
+    m_autoLoginFailedTrials = 0;
     m_statusLabel->setText("已在线");
     appendLog("SUCCESS", "登录成功");
     applyOnlineInfo(info);
@@ -90,6 +91,7 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     }
     if (m_pendingAutoLogin) {
         m_pendingAutoLogin = false;
+        m_autoLoginFailedTrials += 1;
         appendLog("ERROR", "自动登录失败：" + msg);
     }
     setOnlineState(OnlineState::Offline);
@@ -148,6 +150,7 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
 }
 
 void MainWindow::onAutoLoginToggled(bool on) {
+    m_autoLoginFailedTrials = 0;
     saveConfigSilently();
     if (!on) return;
     if (m_onlineState == OnlineState::Offline ||
@@ -210,4 +213,8 @@ void MainWindow::onPollTimerApplyBtnClicked() {
     QMessageBox::information(this, "成功", successTip);
     m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(interval)));
     m_pollTimerIntervalEdit->setText(QString::number(interval));
+}
+
+bool MainWindow::isLoginFailedNotifySuppressed() const {
+    return m_autoLoginFailedTrials > kMaxAutoLoginFailNotifyCount;
 }

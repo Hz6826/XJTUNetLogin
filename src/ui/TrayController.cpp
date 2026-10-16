@@ -10,7 +10,6 @@
 #include <QTimer>
 
 namespace {
-
     QIcon trayIconForState(OnlineState state) {
         const QString name = (state == OnlineState::Online) ? "online" : "offline";
 
@@ -19,19 +18,18 @@ namespace {
         icon.addFile(QString(":/icons/tray/tray-%1-32.png").arg(name));
         return icon;
     }
-
 } // namespace
 
 TrayController::TrayController(SrunClient *client, MainWindow *window,
                                QObject *parent)
     : QObject(parent)
-    , m_client(client)
-    , m_window(window) {
+      , m_client(client)
+      , m_window(window) {
     createMenu();
     createTray();
 
     m_blinkTimer = new QTimer(this);
-    m_blinkTimer->setInterval(500);   // 每 500ms 切换一次
+    m_blinkTimer->setInterval(500); // 每 500ms 切换一次
     connect(m_blinkTimer, &QTimer::timeout, this, [this] {
         m_blinkPhase = !m_blinkPhase;
         updateTrayIcon();
@@ -47,15 +45,15 @@ TrayController::TrayController(SrunClient *client, MainWindow *window,
     });
     connect(m_client, &SrunClient::loginFailed, this,
             [this](const QString &msg, const QJsonObject &) {
-        showNotification("登录失败", msg, false);
-    });
+                if (!m_window->isLoginFailedNotifySuppressed()) showNotification("登录失败", msg, false);
+            });
     connect(m_client, &SrunClient::logoutSucceeded, this, [this] {
         showNotification("已注销", "已断开校园网连接", true);
     });
     connect(m_client, &SrunClient::logoutFailed, this,
             [this](const QString &msg, const QJsonObject &) {
-        showNotification("注销失败", msg, false);
-    });
+                showNotification("注销失败", msg, false);
+            });
 
     updateTrayIcon();
     updateMenuActions();
@@ -116,12 +114,13 @@ void TrayController::updateTrayIcon() {
             m_blinkTimer->start();
         }
         // 按相位选灰或红
-        effective = m_blinkPhase ? OnlineState::Online
-                                 : OnlineState::Offline;
+        effective = m_blinkPhase
+                        ? OnlineState::Online
+                        : OnlineState::Offline;
     } else {
         if (m_blinkTimer->isActive()) {
             m_blinkTimer->stop();
-            m_blinkPhase = false;   // 重置相位，下次进入 Busy 从灰开始
+            m_blinkPhase = false; // 重置相位，下次进入 Busy 从灰开始
         }
     }
 
@@ -132,7 +131,7 @@ void TrayController::updateMenuActions() {
     if (!m_menu) return;
 
     const bool isOnline = (m_onlineState == OnlineState::Online);
-    const bool isBusy   = (m_onlineState == OnlineState::Busy);
+    const bool isBusy = (m_onlineState == OnlineState::Busy);
 
     // 认证动作：忙时禁用；在线时显示"立即注销"，否则"立即登录"
     m_authAction->setEnabled(!isBusy);
@@ -183,7 +182,7 @@ void TrayController::onAuthRequested() {
 }
 
 void TrayController::onQuit() {
-    m_window->setForceQuit(true);   // 让 closeEvent 放行
+    m_window->setForceQuit(true); // 让 closeEvent 放行
     qApp->quit();
 }
 
