@@ -124,7 +124,3 @@ void MainWindow::ensureLogFileForToday() {
 QString MainWindow::logDirPath() {
     return Config::appDataDir() + "/logs";
 }
-
-void MainWindow::checkVersion() {
-    // TODO
-}

@@ -38,6 +38,7 @@ qt_add_executable(XJTUNetLogin
         src/ui/MainWindowAuth.cpp
         src/ui/MainWindowInfo.cpp
         src/net/SrunHttpUtils.cpp
+        src/ui/MainWindowVersion.cpp
 )
 
 # ---------- 生成 AppInfo.h（含 Git 信息） ----------

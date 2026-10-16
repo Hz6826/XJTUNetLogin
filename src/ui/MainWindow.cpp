@@ -37,6 +37,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
     m_client->checkInternet();
+    m_versionNam = new QNetworkAccessManager(this);
     checkVersion();
 
     setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);

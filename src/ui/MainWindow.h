@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QMainWindow>
 #include <QLabel>
+#include <QNetworkAccessManager>
 
 #include "config/Config.h"
 
@@ -105,6 +106,7 @@ private:
     static QString formatDuration(qint64 seconds);
 
     void checkVersion();
+    void onVersionCheckFinished(QNetworkReply *reply);
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -118,6 +120,10 @@ private:
     bool m_pendingAutoLogin = false;
     int m_expandedWindowHeight = -1;
     bool m_firstShowDone = false;
+
+    QNetworkAccessManager *m_versionNam = nullptr;
+    bool m_hasNewVersion = false;
+    QString m_latestVersionUrl;
 
     // 图标
     QIcon m_iconChevronDown;
