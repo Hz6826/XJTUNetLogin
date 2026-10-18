@@ -31,7 +31,6 @@ public:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void setForceQuit(bool force);
     const Config &config() const;
-    bool isLoginFailedNotifySuppressed() const;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -100,6 +99,7 @@ private:
     // ---------- 认证/自动登录（MainWindowAuth.cpp） ----------
     void connectSignals();
     void triggerAutoLogin();
+    bool shouldAttemptAutoLogin();
     void setOnlineState(OnlineState s);
     void updateUiForState();
 
@@ -126,6 +126,7 @@ private:
     int m_expandedWindowHeight = -1;
     bool m_firstShowDone = false;
     int m_autoLoginFailedTrials = 0;
+    bool m_autoLoginMissingCredsNoted = false;
 
     QNetworkAccessManager *m_versionNam = nullptr;
     bool m_hasNewVersion = false;
@@ -191,6 +192,7 @@ private:
 
 signals:
     void onlineStateChanged(OnlineState state);
+    void loginFailedNotify(const QString &message);
 };
 
 #endif // MAINWINDOW_H

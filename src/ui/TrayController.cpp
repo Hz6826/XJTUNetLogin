@@ -43,9 +43,9 @@ TrayController::TrayController(SrunClient *client, MainWindow *window,
     connect(m_client, &SrunClient::loginSucceeded, this, [this] {
         showNotification("登录成功", "已连接到校园网", true);
     });
-    connect(m_client, &SrunClient::loginFailed, this,
-            [this](const QString &msg, const QJsonObject &) {
-                if (!m_window->isLoginFailedNotifySuppressed()) showNotification("登录失败", msg, false);
+    connect(m_window, &MainWindow::loginFailedNotify, this,
+            [this](const QString &msg) {
+                showNotification("登录失败", msg, false);
             });
     connect(m_client, &SrunClient::logoutSucceeded, this, [this] {
         showNotification("已注销", "已断开校园网连接", true);

@@ -50,14 +50,44 @@ void MainWindow::onSaveConfigClicked() {
 }
 
 void MainWindow::triggerAutoLogin() {
+    syncAccountFieldsToConfig();
+
+    if (m_config.username.trimmed().isEmpty() || m_config.password.isEmpty()) {
+        if (!m_autoLoginMissingCredsNoted) {
+            appendLog("WARN", "未填写账号或密码，已跳过自动登录");
+            m_autoLoginMissingCredsNoted = true;
+        }
+        return;
+    }
+    m_autoLoginMissingCredsNoted = false;
+
+    if (m_autoLoginFailedTrials >= kMaxAutoLoginFailNotifyCount)
+        return;
+
     appendLog("STEP", "自动登录触发，尝试登录...");
     m_pendingAutoLogin = true;
-
-    syncAccountFieldsToConfig();
 
     setOnlineState(OnlineState::Busy);
     m_client->login(m_config.username, m_config.password,
                     m_config.acId, m_config.domain);
+}
+
+bool MainWindow::shouldAttemptAutoLogin() {
+    if (!m_autoLoginCheck->isChecked())
+        return false;
+    if (m_onlineState == OnlineState::Online || m_onlineState == OnlineState::Busy)
+        return false;
+    if (m_autoLoginFailedTrials >= kMaxAutoLoginFailNotifyCount)
+        return false;
+    if (m_usernameEdit->text().trimmed().isEmpty() || m_passwordEdit->text().isEmpty()) {
+        if (!m_autoLoginMissingCredsNoted) {
+            appendLog("WARN", "未填写账号或密码，已跳过自动登录");
+            m_autoLoginMissingCredsNoted = true;
+        }
+        return false;
+    }
+    m_autoLoginMissingCredsNoted = false;
+    return true;
 }
 
 void MainWindow::onStageChanged(const QString &stage) {
@@ -69,6 +99,7 @@ void MainWindow::onLogMessage(const QString &level, const QString &msg) {
 }
 
 void MainWindow::onLoginSucceeded(const QJsonObject &info) {
+    m_pendingAutoLogin = false;
     m_autoLoginFailedTrials = 0;
     m_statusLabel->setText("已在线");
     appendLog("SUCCESS", "登录成功");
@@ -89,10 +120,24 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
     if (msg.contains("E2901")) {
         appendLog("ERROR", "用户名或密码错误");
     }
-    if (m_pendingAutoLogin) {
-        m_pendingAutoLogin = false;
-        m_autoLoginFailedTrials += 1;
+
+    const bool autoAttempt = m_pendingAutoLogin;
+    m_pendingAutoLogin = false;
+    if (autoAttempt) {
+        if (msg.contains(QStringLiteral("E2901"))) {
+            m_autoLoginFailedTrials = kMaxAutoLoginFailNotifyCount;
+            appendLog("WARN", "账号或密码错误，已暂停自动登录。关闭再打开该选项后可重试");
+        } else {
+            m_autoLoginFailedTrials += 1;
+            if (m_autoLoginFailedTrials >= kMaxAutoLoginFailNotifyCount) {
+                appendLog("WARN", "自动登录已连续失败，已暂停。关闭再打开该选项后可重试");
+            }
+        }
         appendLog("ERROR", "自动登录失败：" + msg);
+        if (m_autoLoginFailedTrials <= kMaxAutoLoginFailNotifyCount)
+            emit loginFailedNotify(msg);
+    } else {
+        emit loginFailedNotify(msg);
     }
     setOnlineState(OnlineState::Offline);
 }
@@ -142,7 +187,7 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
         clearOnlineInfoPanel();
         setOnlineState(OnlineState::Offline);
 
-        if (m_autoLoginCheck->isChecked()) {
+        if (shouldAttemptAutoLogin()) {
             appendLog("STEP", "检测到离线，探测校园网认证需求...");
             m_client->checkInternet();
         }
@@ -151,6 +196,9 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
 
 void MainWindow::onAutoLoginToggled(bool on) {
     m_autoLoginFailedTrials = 0;
+    m_autoLoginMissingCredsNoted = false;
+    if (!on && m_onlineState != OnlineState::Busy)
+        m_pendingAutoLogin = false;
     saveConfigSilently();
     if (!on) return;
     if (m_onlineState == OnlineState::Offline ||
@@ -174,8 +222,8 @@ void MainWindow::onAutoStartToggled(bool on) {
 void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
     appendLog("INFO", "检测到 captive portal：" + newBaseUrl);
 
-    if (!m_autoLoginCheck->isChecked()) return;
-    if (m_onlineState == OnlineState::Busy) return;
+    if (!shouldAttemptAutoLogin())
+        return;
 
     triggerAutoLogin();
 }
@@ -213,8 +261,4 @@ void MainWindow::onPollTimerApplyBtnClicked() {
     QMessageBox::information(this, "成功", successTip);
     m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(interval)));
     m_pollTimerIntervalEdit->setText(QString::number(interval));
-}
-
-bool MainWindow::isLoginFailedNotifySuppressed() const {
-    return m_autoLoginFailedTrials > kMaxAutoLoginFailNotifyCount;
 }

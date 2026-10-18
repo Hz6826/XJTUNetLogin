@@ -180,6 +180,9 @@ const Config &MainWindow::config() const {
 }
 
 void MainWindow::setOnlineState(OnlineState s) {
+    // 浏览器等方式上线不会走到 onLoginSucceeded。进入在线就结束这一轮失败计数。
+    if (s == OnlineState::Online && m_onlineState != OnlineState::Online)
+        m_autoLoginFailedTrials = 0;
     m_onlineState = s;
     updateUiForState();
     emit onlineStateChanged(s);
