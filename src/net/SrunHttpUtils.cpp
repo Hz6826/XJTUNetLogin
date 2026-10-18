@@ -58,6 +58,8 @@ QString buildQuery(const QList<QPair<QString, QString>> &params) {
 }
 
 void applyCommonHeaders(QNetworkRequest &req, const QString &baseUrl) {
+    // challenge、认证、注销、在线查询和轮询都走这里。挂起时要结束请求，m_busy 才能被失败回调清掉。
+    req.setTransferTimeout(10000);
     req.setHeader(QNetworkRequest::UserAgentHeader, getUAHeader());
     req.setRawHeader("Accept", "application/json, text/javascript, */*; q=0.01");
     req.setRawHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
