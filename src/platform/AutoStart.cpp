@@ -11,6 +11,10 @@
 
 #ifdef Q_OS_WIN
 #include <QSettings>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #elif defined(Q_OS_MACOS)
 #include <QFile>
 #include <QProcess>
@@ -27,29 +31,108 @@ namespace AutoStart {
 
 #ifdef Q_OS_WIN
     // ========== Windows 实现 ==========
+    // Run 键按命令行解析。安装目录默认在 Program Files，路径含空格时必须加引号，
+    // 否则登录阶段会去启动被截断的 C:\Program.exe。
+    // 任务管理器里的开关不改 Run 值，而是写 StartupApproved\Run 的 REG_BINARY：
+    // 首字节 02/06 为启用，03/07 为禁用。只改 Run 值无法重新打开被关掉的项。
+
+    namespace {
+
+        constexpr wchar_t kStartupApprovedRun[] =
+            L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
+
+        QSettings runSettings() {
+            return QSettings(
+                R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)",
+                QSettings::NativeFormat);
+        }
+
+        QString quotedCommand() {
+            const QString exePath = QDir::toNativeSeparators(
+                QCoreApplication::applicationFilePath());
+            return QLatin1Char('"') + exePath + QLatin1Char('"');
+        }
+
+        bool startupApprovedDisabled() {
+            HKEY key = nullptr;
+            if (RegOpenKeyExW(HKEY_CURRENT_USER, kStartupApprovedRun, 0,
+                              KEY_QUERY_VALUE, &key) != ERROR_SUCCESS) {
+                return false;
+            }
+
+            BYTE data[16] = {};
+            DWORD size = sizeof(data);
+            DWORD type = 0;
+            const QString name = identifier();
+            const LONG rc = RegQueryValueExW(
+                key, reinterpret_cast<const wchar_t *>(name.utf16()),
+                nullptr, &type, data, &size);
+            RegCloseKey(key);
+
+            if (rc != ERROR_SUCCESS || type != REG_BINARY || size < 1)
+                return false;
+            return data[0] == 0x03 || data[0] == 0x07;
+        }
+
+        bool clearStartupApproved() {
+            HKEY key = nullptr;
+            const LONG openRc = RegOpenKeyExW(
+                HKEY_CURRENT_USER, kStartupApprovedRun, 0, KEY_SET_VALUE, &key);
+            if (openRc == ERROR_FILE_NOT_FOUND)
+                return true;
+            if (openRc != ERROR_SUCCESS)
+                return false;
+
+            const QString name = identifier();
+            const LONG delRc = RegDeleteValueW(
+                key, reinterpret_cast<const wchar_t *>(name.utf16()));
+            RegCloseKey(key);
+            return delRc == ERROR_SUCCESS || delRc == ERROR_FILE_NOT_FOUND;
+        }
+
+        bool commandMatches(const QSettings &settings) {
+            return settings.value(identifier()).toString().compare(
+                       quotedCommand(), Qt::CaseInsensitive) == 0;
+        }
+
+    } // namespace
 
     bool isEnabled() {
-        QSettings settings(
-            R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)",
-            QSettings::NativeFormat);
-        return settings.contains(identifier());
+        QSettings settings = runSettings();
+        if (!settings.contains(identifier()))
+            return false;
+        // 任务管理器禁用后 Run 值还在。这时不要改写路径，避免把用户关掉的项重新打开。
+        if (startupApprovedDisabled())
+            return false;
+
+        if (commandMatches(settings))
+            return true;
+
+        // 旧版本写入的是未加引号的路径，或程序换过目录。项仍然启用时，改成当前 exe 的带引号命令。
+        settings.setValue(identifier(), quotedCommand());
+        settings.sync();
+        return settings.status() == QSettings::NoError && commandMatches(settings);
     }
 
     bool setEnabled(bool enabled) {
-        QSettings settings(
-            R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)",
-            QSettings::NativeFormat);
+        QSettings settings = runSettings();
 
-        if (enabled) {
-            const QString exePath = QDir::toNativeSeparators(
-                QCoreApplication::applicationFilePath());
-            settings.setValue(identifier(), exePath);
-        } else {
+        if (enabled)
+            settings.setValue(identifier(), quotedCommand());
+        else
             settings.remove(identifier());
-        }
 
         settings.sync();
-        return settings.status() == QSettings::NoError;
+        if (settings.status() != QSettings::NoError)
+            return false;
+        // 启用和关闭都清掉禁用标记，否则任务管理器里关过一次之后，再勾选也不会启动。
+        if (!clearStartupApproved())
+            return false;
+
+        QSettings verify = runSettings();
+        if (enabled)
+            return commandMatches(verify);
+        return !verify.contains(identifier());
     }
 #elif defined(Q_OS_MACOS)
     namespace {

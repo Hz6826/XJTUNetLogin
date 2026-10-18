@@ -73,3 +73,15 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 [UninstallDelete]
 ; 不删用户配置 —— 卸载重装时配置还在 %APPDATA%
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    { 启动项由程序写入当前用户的 Run。升级不会走到这里。
+      同时删掉 StartupApproved，避免重装后沿用任务管理器里的禁用标记。 }
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'XJTUNetLogin');
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run', 'XJTUNetLogin');
+  end;
+end;
