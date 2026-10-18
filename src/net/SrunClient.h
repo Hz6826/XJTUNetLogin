@@ -61,6 +61,7 @@ private:
     void requestAuth();
     void onAuthFinished(QNetworkReply *reply);
     void requestLogout();
+    void queryIpThenLogout();
     void onLogoutFinished(QNetworkReply *reply);
 
     // ---------- 查询/轮询 ----------
@@ -78,6 +79,7 @@ private:
     void log(const QString &level, const QString &msg);
     void setStage(const QString &stage);
     void applyCommonHeaders(QNetworkRequest &req) const; // 封装 utils
+    void rememberIp(const QJsonObject &obj);
 
     void emitLoginSucceeded(const QJsonObject &info);
     void emitLoginFailed(const QString &msg, const QJsonObject &raw);
