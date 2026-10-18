@@ -24,8 +24,9 @@ SrunClient::SrunClient(QObject *parent)
 // ============================================================
 
 void SrunClient::log(const QString &level, const QString &msg) {
-    emit logMessage(level, msg);
-    qDebug().noquote() << QString("[%1] %2").arg(level, msg);
+    const QString safe = SrunHttpUtils::redactSecrets(msg);
+    emit logMessage(level, safe);
+    qDebug().noquote() << QString("[%1] %2").arg(level, safe);
 }
 
 void SrunClient::setStage(const QString &stage) {
@@ -383,7 +384,7 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
     }
 
     m_token = token;
-    log("INFO", "token = " + m_token);
+    log("INFO", "已获取 token");
 
     requestAuth();
 }
@@ -406,8 +407,7 @@ void SrunClient::requestAuth() {
     const QString chksum = SrunCrypto::buildChksum(
         m_token, fullUser, hmd5, m_acId, m_ip, n, type, info);
 
-    log("INFO", "hmd5 = " + hmd5);
-    log("INFO", "chksum = " + chksum);
+    log("INFO", "已计算认证参数");
 
     const QList<QPair<QString, QString>> params = {
         {"action", "login"},

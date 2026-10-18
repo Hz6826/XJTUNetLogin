@@ -6,6 +6,7 @@
 #include "MainWindow.h"
 
 #include "AppInfo.h"
+#include "net/SrunHttpUtils.h"
 
 #include <QCheckBox>
 #include <QClipboard>
@@ -56,7 +57,8 @@ void MainWindow::logWelcome() {
 }
 
 void MainWindow::appendLog(const QString &level, const QString &msg) {
-    writeLogToFile(level, msg);
+    const QString safe = SrunHttpUtils::redactSecrets(msg);
+    writeLogToFile(level, safe);
 
     if (m_config.filterHttpLog && level == "HTTP") {
         return;
@@ -79,7 +81,7 @@ void MainWindow::appendLog(const QString &level, const QString &msg) {
         cursor.insertBlock();
     }
     cursor.setCharFormat(fmt);
-    cursor.insertText(QString("[%1] %2").arg(level, msg));
+    cursor.insertText(QString("[%1] %2").arg(level, safe));
 
     m_logTextEdit->setTextCursor(cursor);
     m_logTextEdit->ensureCursorVisible();
@@ -91,7 +93,8 @@ void MainWindow::writeLogToFile(const QString &level, const QString &msg) {
 
     const QString ts = QDateTime::currentDateTime()
                            .toString("yyyy-MM-dd HH:mm:ss.zzz");
-    const QString line = QString("[%1] [%2] %3\n").arg(ts, level, msg);
+    const QString safe = SrunHttpUtils::redactSecrets(msg);
+    const QString line = QString("[%1] [%2] %3\n").arg(ts, level, safe);
     m_logFile.write(line.toUtf8());
     m_logFile.flush();
 }

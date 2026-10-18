@@ -16,20 +16,49 @@ namespace {
     constexpr char STANDARD_ALPHABET[] =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-    // 字节串 -> 32 位整数数组（小端）
-    QVector<quint32> bytesToInts(const QByteArray &data, bool includeLength) {
-        const int len = data.size();
+    // 门户脚本 s()：v[i>>2] |= charCodeAt(i) << ((i&3)*8)，长度是码元个数。
+    // 第二个字符只左移 8 位，会和前一个码元重叠。这和 UTF-8 字节布局不同。
+    QVector<quint32> charsToInts(const QString &text, bool includeLength) {
+        const int len = text.size();
         const int intCount = (len + 3) / 4 + (includeLength ? 1 : 0);
         QVector<quint32> v(intCount, 0);
+        const ushort *codes = text.utf16();
 
         for (int i = 0; i < len; ++i) {
-            v[i >> 2] |= static_cast<quint32>(static_cast<quint8>(data[i]))
-                    << ((i & 3) * 8);
+            v[i >> 2] |= static_cast<quint32>(codes[i]) << ((i & 3) * 8);
         }
-        if (includeLength) {
+        if (includeLength)
             v[intCount - 1] = static_cast<quint32>(len);
-        }
         return v;
+    }
+
+    // 与 JSON.stringify 一致，供 encodeUserInfo 拼进固定字段顺序。
+    QString jsonEscape(const QString &text) {
+        QString out;
+        out.reserve(text.size());
+        for (const QChar ch : text) {
+            switch (ch.unicode()) {
+            case '"':  out += QStringLiteral("\\\""); break;
+            case '\\': out += QStringLiteral("\\\\"); break;
+            case '\b': out += QStringLiteral("\\b"); break;
+            case '\f': out += QStringLiteral("\\f"); break;
+            case '\n': out += QStringLiteral("\\n"); break;
+            case '\r': out += QStringLiteral("\\r"); break;
+            case '\t': out += QStringLiteral("\\t"); break;
+            case 0x2028:
+            case 0x2029:
+                out += QStringLiteral("\\u%1").arg(ch.unicode(), 4, 16, QLatin1Char('0'));
+                break;
+            default:
+                if (ch.unicode() < 0x20) {
+                    out += QStringLiteral("\\u%1").arg(ch.unicode(), 4, 16, QLatin1Char('0'));
+                } else {
+                    out += ch;
+                }
+                break;
+            }
+        }
+        return out;
     }
 
     // 32 位整数数组 -> 字节串
@@ -61,11 +90,11 @@ namespace {
 } // namespace
 
 namespace SrunCrypto {
-    QByteArray xxteaEncrypt(const QByteArray &data, const QByteArray &key) {
+    QByteArray xxteaEncrypt(const QString &data, const QString &key) {
         if (data.isEmpty()) return QByteArray();
 
-        QVector<quint32> v = bytesToInts(data, true);
-        QVector<quint32> k = bytesToInts(key, false);
+        QVector<quint32> v = charsToInts(data, true);
+        QVector<quint32> k = charsToInts(key, false);
         while (k.size() < 4) k.append(0);
 
         const int n = v.size() - 1;
@@ -134,12 +163,18 @@ namespace SrunCrypto {
                            const QString &ip,
                            const QString &acid,
                            const QString &token) {
-        // 手动拼 JSON，字段顺序和 Python 完全一致，方便日后校验
-        const QString json = QString(
-            R"({"username":"%1","password":"%2","ip":"%3","acid":"%4","enc_ver":"srun_bx1"})"
-        ).arg(username, password, ip, acid);
+        // 字段顺序固定。不用 arg()，避免密码里的 %1 被当成占位符。
+        QString json = QStringLiteral("{\"username\":\"");
+        json += jsonEscape(username);
+        json += QStringLiteral("\",\"password\":\"");
+        json += jsonEscape(password);
+        json += QStringLiteral("\",\"ip\":\"");
+        json += jsonEscape(ip);
+        json += QStringLiteral("\",\"acid\":\"");
+        json += jsonEscape(acid);
+        json += QStringLiteral("\",\"enc_ver\":\"srun_bx1\"}");
 
-        const QByteArray encrypted = xxteaEncrypt(json.toUtf8(), token.toUtf8());
+        const QByteArray encrypted = xxteaEncrypt(json, token);
         return QStringLiteral("{SRBX1}") + customBase64Encode(encrypted);
     }
 
