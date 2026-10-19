@@ -16,6 +16,7 @@ void MainWindow::checkVersion() {
 
     if (!m_versionNam) {
         m_versionNam = new QNetworkAccessManager(this);
+        m_versionNam->setTransferTimeout(30000);
     }
 
     QString repoPath = QString::fromUtf8(AppInfo::RepoUrl);

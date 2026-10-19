@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QNetworkProxy>
+#include <QPointer>
 
 // ============================================================
 // 构造
@@ -17,6 +18,7 @@ SrunClient::SrunClient(QObject *parent)
     : QObject(parent)
     , m_nam(new QNetworkAccessManager(this)) {
     m_nam->setProxy(QNetworkProxy::NoProxy);
+    m_nam->setTransferTimeout(kTransferTimeoutMs);   // 统一 12s
 }
 
 // ============================================================
@@ -41,21 +43,33 @@ void SrunClient::applyCommonHeaders(QNetworkRequest &req) const {
 }
 
 void SrunClient::emitLoginSucceeded(const QJsonObject &info) {
+    if (m_cancelled) return;
+    disarmWatchdog();
+    m_operation = OpNone;
     m_busy = false;
     emit loginSucceeded(info);
 }
 
 void SrunClient::emitLoginFailed(const QString &msg, const QJsonObject &raw) {
+    if (m_cancelled) return;
+    disarmWatchdog();
+    m_operation = OpNone;
     m_busy = false;
     emit loginFailed(msg, raw);
 }
 
 void SrunClient::emitLogoutSucceeded(const QJsonObject &info) {
+    if (m_cancelled) return;
+    disarmWatchdog();
+    m_operation = OpNone;
     m_busy = false;
     emit logoutSucceeded(info);
 }
 
 void SrunClient::emitLogoutFailed(const QString &msg, const QJsonObject &raw) {
+    if (m_cancelled) return;
+    disarmWatchdog();
+    m_operation = OpNone;
     m_busy = false;
     emit logoutFailed(msg, raw);
 }
@@ -67,9 +81,101 @@ QString SrunClient::maskIfNeeded(const QString &text) const { // NOLINT(*-conver
         text.startsWith(QLatin1String("https://"))) {
         if (const auto qpos = text.indexOf(QLatin1Char('?')); qpos >= 0)
             return text.left(qpos + 1) + QStringLiteral("****");
-        return text;   // 无 query 的 URL 没有敏感信息，原样显示
+        return text;
     }
     return QStringLiteral("****");
+}
+
+// ============================================================
+// 看门狗 & 取消
+// ============================================================
+
+void SrunClient::attachOpReply(QNetworkReply *reply) {
+    m_opReplies.append(reply);
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        m_opReplies.removeAll(QPointer<QNetworkReply>(reply));
+    });
+}
+
+void SrunClient::abortOpReplies() {
+    // abort() 会同步 emit finished，所以先拷贝快照
+    const auto snapshot = m_opReplies;
+    m_opReplies.clear();
+    for (const auto &r : snapshot) {
+        if (r) r->abort();
+    }
+}
+
+void SrunClient::armWatchdog(int timeoutMs) {
+    if (!m_watchdog) {
+        m_watchdog = new QTimer(this);
+        m_watchdog->setSingleShot(true);
+        connect(m_watchdog, &QTimer::timeout,
+                this, &SrunClient::onWatchdogTimeout);
+    }
+    m_watchdog->start(timeoutMs);
+}
+
+void SrunClient::disarmWatchdog() {
+    if (m_watchdog) m_watchdog->stop();
+}
+
+void SrunClient::onWatchdogTimeout() {
+    const Operation op = m_operation;
+    m_operation = OpNone;
+
+    log("ERROR", "操作超时（看门狗触发），中止本次请求");
+
+    m_cancelled = true;
+    abortOpReplies();
+    m_cancelled = false;
+    disarmWatchdog();
+
+    switch (op) {
+    case OpLogin:
+        emitLoginFailed("登录超时（看门狗）", {});
+        break;
+    case OpLogout:
+        emitLogoutFailed("注销超时（看门狗）", {});
+        break;
+    default:
+        m_busy = false;
+        emit operationCancelled();
+        break;
+    }
+}
+
+void SrunClient::cancel() {
+    if (m_operation == OpNone) return;
+
+    log("INFO", "用户取消当前操作");
+
+    m_operation = OpNone;
+    m_cancelled = true;
+    abortOpReplies();          // abort 触发 finished，回调里 m_cancelled=true 直接 return
+    disarmWatchdog();
+    m_cancelled = false;
+    m_busy = false;
+
+    emit operationCancelled();
+}
+
+void SrunClient::reset() {
+    cancel();
+
+    if (m_pollTimer) m_pollTimer->stop();
+    m_periodicPollInFlight = false;
+    if (m_periodicReply) {
+        m_periodicReply->abort();
+        m_periodicReply = nullptr;
+    }
+
+    m_ip.clear();
+    m_token.clear();
+    m_ipResolved = false;
+    m_busy = false;
+    m_operation = OpNone;
+    setStage("空闲");
 }
 
 // ============================================================
@@ -78,6 +184,11 @@ QString SrunClient::maskIfNeeded(const QString &text) const { // NOLINT(*-conver
 
 void SrunClient::login(const QString &username, const QString &password,
                        const QString &acId, const QString &domain) {
+    if (m_busy) {
+        log("WARN", "上一次操作尚未完成，先取消");
+        cancel();
+    }
+
     m_username = username;
     m_password = password;
     m_acId = acId;
@@ -86,6 +197,10 @@ void SrunClient::login(const QString &username, const QString &password,
     m_token.clear();
     m_ipResolved = false;
     m_busy = true;
+    m_cancelled = false;
+    m_operation = OpLogin;
+
+    armWatchdog(kLoginWatchdogMs);
 
     log("STEP", "========== 开始登录流程 ==========");
     log("INFO", QString("user=%1%2  ac_id=%3")
@@ -100,10 +215,19 @@ void SrunClient::login(const QString &username, const QString &password,
 
 void SrunClient::logout(const QString &username, const QString &acId,
                         const QString &domain) {
+    if (m_busy) {
+        log("WARN", "上一次操作尚未完成，先取消");
+        cancel();
+    }
+
     m_username = username;
     m_acId = acId;
     m_domain = domain;
     m_busy = true;
+    m_cancelled = false;
+    m_operation = OpLogout;
+
+    armWatchdog(kLogoutWatchdogMs);
 
     log("STEP", "========== 开始注销流程 ==========");
     log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
@@ -157,7 +281,6 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    // 若本地还没有 IP，用服务器看到的 client_ip 更新
     if (m_ip.isEmpty()) {
         const QString clientIp = obj.value("client_ip").toString();
         if (!clientIp.isEmpty()) {
@@ -205,8 +328,8 @@ void SrunClient::checkInternet() {
     QNetworkRequest req{QUrl(testUrl)};
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::ManualRedirectPolicy);
-    req.setTransferTimeout(5000);
     req.setHeader(QNetworkRequest::UserAgentHeader, SrunHttpUtils::getUAHeader());
+    // 不再单独覆盖 transferTimeout，统一由 QNAM 控制
     QNetworkReply *reply = m_nam->get(req);
 
     log("HTTP", "GET " + testUrl);
@@ -276,6 +399,11 @@ void SrunClient::stopPolling() {
     if (m_pollTimer) {
         m_pollTimer->stop();
     }
+    if (m_periodicReply) {
+        m_periodicReply->abort();
+        m_periodicReply = nullptr;
+    }
+    m_periodicPollInFlight = false;
 }
 
 void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
@@ -293,12 +421,22 @@ void SrunClient::setLogSensitive(const bool logSensitive) {
 void SrunClient::doPeriodicPoll() {
     if (m_busy) return;
 
+    // 关键：单飞保护，避免请求在无响应时堆积
+    if (m_periodicPollInFlight) {
+        log("WARN", "上一次周期轮询尚未结束，跳过本次");
+        return;
+    }
+    m_periodicPollInFlight = true;
+
     const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
+    m_periodicReply = reply;
 
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        m_periodicPollInFlight = false;
+        if (m_periodicReply == reply) m_periodicReply = nullptr;
         onPeriodicPollFinished(reply);
     });
 }
@@ -336,6 +474,8 @@ void SrunClient::onPeriodicPollFinished(QNetworkReply *reply) {
 // ============================================================
 
 void SrunClient::requestChallenge() {
+    if (m_operation == OpNone) return;
+
     setStage("获取令牌");
     log("STEP", "→ 请求 challenge");
 
@@ -352,6 +492,7 @@ void SrunClient::requestChallenge() {
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
+    attachOpReply(reply);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         onChallengeFinished(reply);
@@ -363,6 +504,8 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
     const auto netErr = reply->error();
     const QString netErrStr = reply->errorString();
     reply->deleteLater();
+
+    if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "challenge 网络错误: " + netErrStr);
@@ -387,7 +530,6 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
         return;
     }
 
-    // 服务器视角的 IP 和本地不一致时，用服务器为准，重新请求一次 challenge
     const QString clientIp = obj.value("client_ip").toString();
     if (!m_ipResolved && !clientIp.isEmpty() && clientIp != m_ip) {
         log("INFO", QString("本地 IP=%1，服务器看到 IP=%2，以服务器为准并重新获取 token")
@@ -409,6 +551,8 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
 // ============================================================
 
 void SrunClient::requestAuth() {
+    if (m_operation == OpNone) return;
+
     setStage("认证中");
     log("STEP", "→ 请求认证");
 
@@ -448,6 +592,7 @@ void SrunClient::requestAuth() {
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
+    attachOpReply(reply);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         onAuthFinished(reply);
@@ -459,6 +604,8 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
     const auto netErr = reply->error();
     const QString netErrStr = reply->errorString();
     reply->deleteLater();
+
+    if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "auth 网络错误: " + netErrStr);
@@ -493,6 +640,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
     setStage("确认在线状态");
 
     pollOnlineStatus(3, "ok", [this](bool success, const QJsonObject &obj) {
+        if (m_cancelled) return;
         if (success) {
             log("INFO", QString("登录成功: user=%1, ip=%2, 产品=%3, 已用流量=%4 bytes")
                     .arg(maskIfNeeded(obj.value("user_name").toString()),
@@ -513,6 +661,8 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
 // ============================================================
 
 void SrunClient::requestLogout() {
+    if (m_operation == OpNone) return;
+
     setStage("注销中");
     log("STEP", "→ 请求注销");
 
@@ -531,6 +681,7 @@ void SrunClient::requestLogout() {
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
+    attachOpReply(reply);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         onLogoutFinished(reply);
@@ -542,6 +693,8 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
     const auto netErr = reply->error();
     const QString netErrStr = reply->errorString();
     reply->deleteLater();
+
+    if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
         log("ERROR", "logout 网络错误: " + netErrStr);
@@ -573,6 +726,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
     setStage("确认下线状态");
 
     pollOnlineStatus(3, "not_online_error", [this](bool success, const QJsonObject &obj) {
+        if (m_cancelled) return;
         if (success) {
             log("INFO", "已确认下线");
             setStage("已离线");
@@ -595,11 +749,12 @@ void SrunClient::pollOnlineStatus(int maxChecks, const QString &successError,
     m_pollSuccessError = successError;
     m_pollCallback = std::move(callback);
 
-    // 首次延迟，等服务器把状态写完
     QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
 }
 
 void SrunClient::doPollStep() {
+    if (m_operation == OpNone) return;   // 已被 cancel / 看门狗中止
+
     m_pollCheckCount++;
     log("STEP", QString("→ 第 %1/%2 次查询在线状态")
             .arg(m_pollCheckCount).arg(m_pollMaxChecks));
@@ -610,6 +765,7 @@ void SrunClient::doPollStep() {
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
+    attachOpReply(reply);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         onPollStepFinished(reply);
@@ -622,9 +778,10 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
     const QString netErrStr = reply->errorString();
     reply->deleteLater();
 
+    if (m_cancelled || m_operation == OpNone) return;
+
     if (netErr != QNetworkReply::NoError) {
         log("WARN", "轮询网络错误: " + netErrStr);
-        // 网络错误不算成功也不算失败，继续重试
         if (m_pollCheckCount < m_pollMaxChecks) {
             QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
         } else {

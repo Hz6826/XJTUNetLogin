@@ -5,6 +5,8 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QString>
+#include <QPointer>
+#include <QList>
 #include <functional>
 
 class QNetworkAccessManager;
@@ -36,6 +38,14 @@ public:
 
     void setLogSensitive(bool logSensitive);
 
+public slots:
+    // 取消正在进行的 login/logout（含其内部 challenge/auth/verify 轮询），
+    // 以及 abort 在飞的周期轮询请求。不改变账号/IP 上下文。
+    void cancel();
+
+    // 复位：cancel() + 停轮询 + 清 token/IP + 回空闲态。
+    void reset();
+
 signals:
     // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR" / "SUCCESS"
     void logMessage(const QString &level, const QString &message);
@@ -56,7 +66,13 @@ signals:
     void onlineStatusRefreshed(bool online, const QJsonObject &info);
     void captivePortalDetected(const QString &newBaseUrl);
 
+    // 由 cancel() / reset() 触发（login/logout 被主动取消时发出）
+    void operationCancelled();
+
 private:
+    // ---------- 操作状态 ----------
+    enum Operation { OpNone, OpLogin, OpLogout };
+
     // ---------- 登录/登出流程 ----------
     void requestChallenge();
     void onChallengeFinished(QNetworkReply *reply);
@@ -75,6 +91,14 @@ private:
     void onCheckInternetFinished(QNetworkReply *reply);
     void doPeriodicPoll();
     void onPeriodicPollFinished(QNetworkReply *reply);
+
+    // ---------- 看门狗 / 取消 ----------
+    void armWatchdog(int timeoutMs);
+    void disarmWatchdog();
+    void onWatchdogTimeout();
+
+    void attachOpReply(QNetworkReply *reply);
+    void abortOpReplies();
 
     // ---------- 辅助 ----------
     void log(const QString &level, const QString &msg);
@@ -108,9 +132,30 @@ private:
     QTimer *m_pollTimer = nullptr;
     bool m_busy = false;
 
+    // 当前正在进行的 login/logout 操作（OpNone 表示空闲）
+    Operation m_operation = OpNone;
+
+    // 整体看门狗（覆盖 login / logout 全流程）
+    QTimer *m_watchdog = nullptr;
+
+    // 取消窗口：为 true 时业务回调直接丢弃，避免误发 success/failed
+    bool m_cancelled = false;
+
+    // 追踪 login/logout 流程内所有在飞请求，cancel/watchdog 统一 abort
+    QList<QPointer<QNetworkReply>> m_opReplies;
+
+    // 周期轮询单飞保护
+    bool m_periodicPollInFlight = false;
+    QPointer<QNetworkReply> m_periodicReply;
+
     bool m_logSensitive = false;
 
-    static constexpr int kVerifyPollIntervalMs = 1000;
+    // ---------- 常量 ----------
+    static constexpr int kTransferTimeoutMs = 12000;   // QNAM 统一超时（8~15s）
+    static constexpr int kLoginWatchdogMs    = 60000;  // 登录整体看门狗
+    static constexpr int kLogoutWatchdogMs   = 30000;  // 注销整体看门狗
+    static constexpr int kVerifyPollIntervalMs = 1000; // 登录/注销后确认在线间隔
+
     QString m_baseUrl = "http://10.6.21.2";
 };
 
