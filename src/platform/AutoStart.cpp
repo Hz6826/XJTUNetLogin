@@ -2,6 +2,15 @@
 // Created by Hz6826 on 2026/10/15.
 //
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#endif
+
 #include "AutoStart.h"
 
 #include <QCoreApplication>
@@ -11,9 +20,6 @@
 
 #ifdef Q_OS_WIN
 #include <QSettings>
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #include <windows.h>
 #elif defined(Q_OS_MACOS)
 #include <QFile>
