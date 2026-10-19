@@ -112,6 +112,8 @@ private:
 
     void checkVersion();
     void onVersionCheckFinished(QNetworkReply *reply);
+    void updateLogSensitiveUi() const;
+    void toggleLogSensitive();
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -175,6 +177,7 @@ private:
 
     QComboBox *m_defaultCloseActionCombo = nullptr;
 
+    QLabel *m_fullIconLabel = nullptr;
     QLabel *m_versionCheckLabel = nullptr;
 
     static constexpr int kAuthFormHeight     = 120;

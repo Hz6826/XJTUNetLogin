@@ -34,6 +34,8 @@ public:
     void stopPolling();
     void applyPollingIntervalAndRestart(int intervalMs);
 
+    void setLogSensitive(bool logSensitive);
+
 signals:
     // level: "STEP" / "INFO" / "HTTP" / "WARN" / "ERROR" / "SUCCESS"
     void logMessage(const QString &level, const QString &message);
@@ -84,6 +86,8 @@ private:
     void emitLogoutSucceeded(const QJsonObject &info);
     void emitLogoutFailed(const QString &msg, const QJsonObject &raw);
 
+    QString maskIfNeeded(const QString &text) const;
+
     // ---------- 状态 ----------
     QNetworkAccessManager *m_nam = nullptr;
 
@@ -103,6 +107,8 @@ private:
 
     QTimer *m_pollTimer = nullptr;
     bool m_busy = false;
+
+    bool m_logSensitive = false;
 
     static constexpr int kVerifyPollIntervalMs = 1000;
     QString m_baseUrl = "http://10.6.21.2";

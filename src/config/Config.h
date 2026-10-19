@@ -35,6 +35,10 @@ struct Config {
     QByteArray windowGeometry;
     int expandedWindowHeight = -1;
 
+    // ---------- debug 分组 ---------
+    // 不在UI显示，需手动配置json以防误配置
+    bool logSensitive = false;   // 是否在日志中包含敏感信息（token 等）
+
     static QString appDataDir();
 
     // ---------- 静态入口 ----------

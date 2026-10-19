@@ -10,7 +10,6 @@
 #include "net/SrunClient.h"
 
 #include <QCheckBox>
-#include <QCloseEvent>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
@@ -20,11 +19,15 @@
 #include <QToolButton>
 #include <QToolTip>
 #include <QComboBox>
+#include <QMouseEvent>
+#include <QCursor>
+#include <QCloseEvent>
 
 MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     : QMainWindow(parent)
     , m_client(client) {
     m_config = Config::load();
+    m_client->setLogSensitive(m_config.logSensitive);
 
     loadIcons();
     m_lastDarkTheme = Theme::isDark();
@@ -152,6 +155,15 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
         }
     }
 
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        const auto *widget  = qobject_cast<QWidget *>(obj);
+        if (const auto *mouseEv = static_cast<QMouseEvent *>(event);
+            widget == m_fullIconLabel && mouseEv->button() == Qt::LeftButton) {
+            toggleLogSensitive();
+            return true;
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonRelease) {
         const auto *widget  = qobject_cast<QWidget *>(obj);
         // ReSharper disable once CppTooWideScopeInitStatement
@@ -183,6 +195,36 @@ void MainWindow::setOnlineState(OnlineState s) {
     m_onlineState = s;
     updateUiForState();
     emit onlineStateChanged(s);
+}
+
+void MainWindow::toggleLogSensitive() {
+    m_config.logSensitive = !m_config.logSensitive;
+    m_client->setLogSensitive(m_config.logSensitive);
+    saveConfigSilently();
+    updateLogSensitiveUi();
+
+    if (m_config.logSensitive) {
+        onLogMessage("WARN",
+            "日志脱敏已关闭：后续日志将包含 token / password / chksum 等敏感信息，请勿随意分享日志文件！");
+    } else {
+        onLogMessage("INFO",
+            "日志脱敏已开启：敏感字段将被替换。");
+    }
+}
+
+void MainWindow::updateLogSensitiveUi() const {
+    if (!m_fullIconLabel) return;
+    if (m_config.logSensitive) {
+        // 关闭脱敏：加红色边框或换图标
+        m_fullIconLabel->setStyleSheet("QLabel { border: 2px solid #f44747; border-radius: 4px; }");
+    } else {
+        m_fullIconLabel->setStyleSheet({});
+    }
+    const QString state = m_config.logSensitive
+        ? "已关闭（明文显示敏感信息）"
+        : "已开启（敏感信息打码）";
+    m_fullIconLabel->setToolTip(
+        QString("双击切换日志脱敏\n当前：%1").arg(state));
 }
 
 void MainWindow::updateUiForState() {

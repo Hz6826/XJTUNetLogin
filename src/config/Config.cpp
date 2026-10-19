@@ -110,6 +110,10 @@ Config Config::fromJson(const QJsonObject &root) {
         uiCfg.value("windowGeometry").toString().toLatin1());
     c.expandedWindowHeight = uiCfg.value("expandedWindowHeight").toInt(-1);
 
+    const QJsonObject debugCfg = root.value("debug").toObject();
+
+    c.logSensitive = debugCfg.value("logSensitive").toBool(false);
+
     return c;
 }
 
@@ -134,10 +138,14 @@ QJsonObject Config::toJson() const {
         windowGeometry.toBase64());
     uiCfg["expandedWindowHeight"] = expandedWindowHeight;
 
+    QJsonObject debugCfg;
+    debugCfg["logSensitive"] = logSensitive;
+
     QJsonObject root;
     root["auth"] = authCfg;
     root["auto"] = autoCfg;
     root["ui"] = uiCfg;
+    root["debug"] = debugCfg;
     return root;
 }
 

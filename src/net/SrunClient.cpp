@@ -60,6 +60,18 @@ void SrunClient::emitLogoutFailed(const QString &msg, const QJsonObject &raw) {
     emit logoutFailed(msg, raw);
 }
 
+QString SrunClient::maskIfNeeded(const QString &text) const { // NOLINT(*-convert-member-functions-to-static)
+    if (text.isEmpty() || m_logSensitive) return text;
+
+    if (text.startsWith(QLatin1String("http://")) ||
+        text.startsWith(QLatin1String("https://"))) {
+        if (const auto qpos = text.indexOf(QLatin1Char('?')); qpos >= 0)
+            return text.left(qpos + 1) + QStringLiteral("****");
+        return text;   // 无 query 的 URL 没有敏感信息，原样显示
+    }
+    return QStringLiteral("****");
+}
+
 // ============================================================
 // 公开入口：login
 // ============================================================
@@ -77,7 +89,7 @@ void SrunClient::login(const QString &username, const QString &password,
 
     log("STEP", "========== 开始登录流程 ==========");
     log("INFO", QString("user=%1%2  ac_id=%3")
-            .arg(m_username, m_domain, m_acId));
+            .arg(maskIfNeeded(m_username), m_domain, m_acId));
 
     requestChallenge();
 }
@@ -95,7 +107,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
 
     log("STEP", "========== 开始注销流程 ==========");
     log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
-            .arg(m_username, m_domain, m_ip, m_acId));
+            .arg(maskIfNeeded(m_username), m_domain, m_ip, m_acId));
 
     requestLogout();
 }
@@ -108,7 +120,7 @@ void SrunClient::queryOnline(bool silent) {
     if (!silent) log("STEP", "→ 查询在线状态");
 
     const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
-    if (!silent) log("HTTP", "GET " + fullUrl);
+    if (!silent) log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
@@ -133,7 +145,7 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    if (!silent) log("HTTP", "← 在线信息响应: " + SrunHttpUtils::previewBody(data, 300));
+    if (!silent) log("HTTP", "← 在线信息响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -159,7 +171,7 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
     if (err == "ok") {
         if (!silent) {
             log("INFO", QString("当前在线: user=%1, ip=%2")
-                .arg(obj.value("user_name").toString(),
+                .arg(maskIfNeeded(obj.value("user_name").toString()),
                      obj.value("online_ip").toString()));
             emit onlineInfoReceived(obj);
         }
@@ -274,6 +286,10 @@ void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
     }
 }
 
+void SrunClient::setLogSensitive(const bool logSensitive) {
+    m_logSensitive = logSensitive;
+}
+
 void SrunClient::doPeriodicPoll() {
     if (m_busy) return;
 
@@ -331,7 +347,7 @@ void SrunClient::requestChallenge() {
     const QString fullUrl = QString("%1/cgi-bin/get_challenge?%2")
             .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
-    log("HTTP", "GET " + fullUrl);
+    log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
@@ -354,7 +370,7 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← challenge 响应: " + SrunHttpUtils::previewBody(data));
+    log("HTTP", "← challenge 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data)));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -383,7 +399,7 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
     }
 
     m_token = token;
-    log("INFO", "token = " + m_token);
+    log("INFO", "token = " + maskIfNeeded(m_token));
 
     requestAuth();
 }
@@ -406,8 +422,8 @@ void SrunClient::requestAuth() {
     const QString chksum = SrunCrypto::buildChksum(
         m_token, fullUser, hmd5, m_acId, m_ip, n, type, info);
 
-    log("INFO", "hmd5 = " + hmd5);
-    log("INFO", "chksum = " + chksum);
+    log("INFO", "hmd5 = " + maskIfNeeded(hmd5));
+    log("INFO", "chksum = " + maskIfNeeded(chksum));
 
     const QList<QPair<QString, QString>> params = {
         {"action", "login"},
@@ -427,7 +443,7 @@ void SrunClient::requestAuth() {
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
             .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
-    log("HTTP", "GET " + fullUrl);
+    log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
@@ -450,7 +466,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← auth 响应: " + SrunHttpUtils::previewBody(data, 300));
+    log("HTTP", "← auth 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -479,7 +495,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
     pollOnlineStatus(3, "ok", [this](bool success, const QJsonObject &obj) {
         if (success) {
             log("INFO", QString("登录成功: user=%1, ip=%2, 产品=%3, 已用流量=%4 bytes")
-                    .arg(obj.value("user_name").toString(),
+                    .arg(maskIfNeeded(obj.value("user_name").toString()),
                          obj.value("online_ip").toString(),
                          obj.value("products_name").toString(),
                          QString::number(obj.value("sum_bytes").toVariant().toLongLong())));
@@ -510,7 +526,7 @@ void SrunClient::requestLogout() {
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
             .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
 
-    log("HTTP", "GET " + fullUrl);
+    log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
@@ -533,7 +549,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← logout 响应: " + SrunHttpUtils::previewBody(data, 300));
+    log("HTTP", "← logout 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -589,7 +605,7 @@ void SrunClient::doPollStep() {
             .arg(m_pollCheckCount).arg(m_pollMaxChecks));
 
     const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
-    log("HTTP", "GET " + fullUrl);
+    log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
@@ -617,7 +633,7 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← 在线信息响应: " + SrunHttpUtils::previewBody(data, 200));
+    log("HTTP", "← 在线信息响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 200)));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);

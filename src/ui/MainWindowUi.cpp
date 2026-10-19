@@ -261,7 +261,7 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
     auto *pollingGroup = new QGroupBox("轮询");
     auto *pollingLayout = new QHBoxLayout(pollingGroup);
 
-    QLabel *pollTimerIntervalLabel = new QLabel("轮询间隔(ms)");
+    auto *pollTimerIntervalLabel = new QLabel("轮询间隔(ms)");
     QString toolTipText = QString("单位为毫秒，可以设置%1 (%2) 到%3 (%4) 间的任意整数值")
         .arg(Config::kMinPollInterval)
         .arg(formatDuration(static_cast<qint64>(Config::kMinPollInterval) / 1000))
@@ -271,7 +271,7 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
     pollTimerIntervalLabel->installEventFilter(this);
 
     m_pollTimerIntervalEdit = new QLineEdit;
-    QIntValidator *validator = new QIntValidator(Config::kMinPollInterval, Config::kMaxPollInterval, this);
+    auto *validator = new QIntValidator(Config::kMinPollInterval, Config::kMaxPollInterval, this);
     m_pollTimerIntervalEdit->setValidator(validator);
     m_pollTimerIntervalEdit->setToolTip(toolTipText);
     m_pollTimerIntervalEdit->installEventFilter(this);
@@ -325,14 +325,16 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     titleRow->setSpacing(16);
     titleRow->setAlignment(Qt::AlignCenter);
 
-    auto *fullIconLabel = new QLabel;
+    m_fullIconLabel = new QLabel;
     QPixmap pix(":/icons/app/app-48.png");
     if (!pix.isNull()) {
-        fullIconLabel->setPixmap(pix);
+        m_fullIconLabel->setPixmap(pix);
     }
-    fullIconLabel->setAlignment(Qt::AlignCenter);
-    fullIconLabel->setFixedSize(48, 48);
-    titleRow->addWidget(fullIconLabel, 0, Qt::AlignVCenter);
+    m_fullIconLabel->setAlignment(Qt::AlignCenter);
+    m_fullIconLabel->setFixedSize(48, 48);
+    m_fullIconLabel->installEventFilter(this);
+    updateLogSensitiveUi();
+    titleRow->addWidget(m_fullIconLabel, 0, Qt::AlignVCenter);
 
     // 右侧放标题 + 版本，竖排
     auto *titleTextCol = new QVBoxLayout;
