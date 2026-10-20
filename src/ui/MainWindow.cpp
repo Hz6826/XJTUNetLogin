@@ -101,7 +101,9 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     const CloseAction action = (clicked == minBtn) ? CloseAction::MinimizeToTray : CloseAction::Quit;
 
     if (remember) {
-        m_config.closeAction = action;
+        if (const int idx = m_defaultCloseActionCombo->findData(static_cast<int>(action));
+            idx >= 0)
+            m_defaultCloseActionCombo->setCurrentIndex(idx);
         saveConfigSilently();
     }
 
