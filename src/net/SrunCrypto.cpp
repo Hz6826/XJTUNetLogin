@@ -16,6 +16,10 @@ namespace {
     constexpr char STANDARD_ALPHABET[] =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+    QString hex4(const char16_t c) {
+        return QStringLiteral("\\u%1").arg(static_cast<int>(c), 4, 16, QLatin1Char('0'));
+    }
+
     // 门户脚本 s()：v[i>>2] |= charCodeAt(i) << ((i&3)*8)，长度是码元个数。
     // 第二个字符只左移 8 位，会和前一个码元重叠。这和 UTF-8 字节布局不同。
     QVector<quint32> charsToInts(const QString &text, bool includeLength) {
@@ -47,11 +51,11 @@ namespace {
             case '\t': out += QStringLiteral("\\t"); break;
             case 0x2028:
             case 0x2029:
-                out += QStringLiteral("\\u%1").arg(ch.unicode(), 4, 16, QLatin1Char('0'));
+                out += hex4(ch.unicode());
                 break;
             default:
                 if (ch.unicode() < 0x20) {
-                    out += QStringLiteral("\\u%1").arg(ch.unicode(), 4, 16, QLatin1Char('0'));
+                    out += hex4(ch.unicode());
                 } else {
                     out += ch;
                 }

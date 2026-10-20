@@ -94,7 +94,7 @@ private:
 
     // ---------- 看门狗 / 取消 ----------
     void armWatchdog(int timeoutMs);
-    void disarmWatchdog();
+    void disarmWatchdog() const;
     void onWatchdogTimeout();
 
     void attachOpReply(QNetworkReply *reply);

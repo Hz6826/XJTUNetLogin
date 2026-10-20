@@ -116,7 +116,7 @@ void SrunClient::armWatchdog(int timeoutMs) {
     m_watchdog->start(timeoutMs);
 }
 
-void SrunClient::disarmWatchdog() {
+void SrunClient::disarmWatchdog() const {
     if (m_watchdog) m_watchdog->stop();
 }
 
@@ -152,7 +152,7 @@ void SrunClient::cancel() {
 
     m_operation = OpNone;
     m_cancelled = true;
-    abortOpReplies();          // abort 触发 finished，回调里 m_cancelled=true 直接 return
+    abortOpReplies();          // abort 触发 finished，回调里 m_canceled=true 直接 return
     disarmWatchdog();
     m_cancelled = false;
     m_busy = false;
@@ -230,7 +230,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
     armWatchdog(kLogoutWatchdogMs);
 
     log("STEP", "========== 开始注销流程 ==========");
-    log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
+    log("INFO", QString("user=%1%2")
             .arg(maskIfNeeded(m_username), m_domain, m_ip, m_acId));
 
     requestLogout();
@@ -675,8 +675,6 @@ void SrunClient::requestLogout() {
     const QList<QPair<QString, QString>> params = {
         {"action", "logout"},
         {"username", m_username + m_domain},
-        {"ip", m_ip},
-        {"ac_id", m_acId},
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
