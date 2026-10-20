@@ -23,6 +23,9 @@ namespace SrunHttpUtils {
     // 截断响应体用于日志预览
     QString previewBody(const QByteArray &data, int maxLen = 200);
 
+    // 去掉日志中的 token、hmd5、chksum 和 {SRBX1} 密文。这些材料可以还原密码。
+    QString redactSecrets(const QString &text);
+
     // 拼接 query string（key/value 会做 URL 编码）
     QString buildQuery(const QList<QPair<QString, QString>> &params);
 

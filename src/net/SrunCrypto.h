@@ -9,8 +9,8 @@ namespace SrunCrypto {
     // 自定义字母表 Base64 编码
     QString customBase64Encode(const QByteArray &data);
 
-    // XXTEA 加密（Srun 变体），输入输出都用字节串
-    QByteArray xxteaEncrypt(const QByteArray &data, const QByteArray &key);
+    // XXTEA 加密（Srun 变体）。按门户脚本 charCodeAt 把 UTF-16 码元组进 32 位整数。
+    QByteArray xxteaEncrypt(const QString &data, const QString &key);
 
     // HMAC-MD5，返回 32 位小写 hex 字符串
     QString hmacMd5(const QString &password, const QString &token);

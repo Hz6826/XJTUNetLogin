@@ -46,6 +46,33 @@ QString previewBody(const QByteArray &data, int maxLen) {
     return text.size() <= maxLen ? text : text.left(maxLen) + "...";
 }
 
+QString redactSecrets(const QString &text) {
+    QString out = text;
+
+    static const QRegularExpression queryRe(
+        R"(\b((?:password|info|chksum))=[^&\s]*)",
+        QRegularExpression::CaseInsensitiveOption);
+    out.replace(queryRe, R"(\1=***)");
+
+    static const QRegularExpression labeledRe(
+        R"(\b(token|hmd5|chksum)\s*=\s*\S+)",
+        QRegularExpression::CaseInsensitiveOption);
+    out.replace(labeledRe, R"(\1=***)");
+
+    static const QRegularExpression challengeRe(
+        R"("challenge"\s*:\s*"[^"]*"?)");
+    out.replace(challengeRe, R"("challenge":"***")");
+
+    static const QRegularExpression srbxRe(R"(\{SRBX1\}[A-Za-z0-9+/=]+)");
+    out.replace(srbxRe, "{SRBX1}***");
+
+    static const QRegularExpression srbxEncodedRe(
+        R"(%7[Bb]SRBX1%7[Dd][^&\s]*)");
+    out.replace(srbxEncodedRe, "%7BSRBX1%7D***");
+
+    return out;
+}
+
 QString buildQuery(const QList<QPair<QString, QString>> &params) {
     QStringList parts;
     parts.reserve(params.size());
