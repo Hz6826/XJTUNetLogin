@@ -40,15 +40,6 @@ void SrunClient::applyCommonHeaders(QNetworkRequest &req) const {
     SrunHttpUtils::applyCommonHeaders(req, m_baseUrl);
 }
 
-void SrunClient::rememberIp(const QJsonObject &obj) {
-    QString ip = obj.value("online_ip").toVariant().toString().trimmed();
-    if (ip.isEmpty())
-        ip = obj.value("client_ip").toVariant().toString().trimmed();
-    if (ip.isEmpty())
-        return;
-    m_ip = ip;
-}
-
 void SrunClient::emitLoginSucceeded(const QJsonObject &info) {
     m_busy = false;
     emit loginSucceeded(info);
@@ -103,15 +94,9 @@ void SrunClient::logout(const QString &username, const QString &acId,
     m_busy = true;
 
     log("STEP", "========== 开始注销流程 ==========");
-    if (m_ip.isEmpty()) {
-        log("INFO", QString("user=%1%2  ac_id=%3，尚未取得在线 IP，先查询")
-                .arg(m_username, m_domain, m_acId));
-        queryIpThenLogout();
-        return;
-    }
-
     log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
             .arg(m_username, m_domain, m_ip, m_acId));
+
     requestLogout();
 }
 
@@ -160,10 +145,14 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    const QString previousIp = m_ip;
-    rememberIp(obj);
-    if (!silent && m_ip != previousIp && !m_ip.isEmpty())
-        log("INFO", "已获取本机 IP: " + m_ip);
+    // 若本地还没有 IP，用服务器看到的 client_ip 更新
+    if (m_ip.isEmpty()) {
+        const QString clientIp = obj.value("client_ip").toString();
+        if (!clientIp.isEmpty()) {
+            m_ip = clientIp;
+            if (!silent) log("INFO", "已获取本机 IP: " + m_ip);
+        }
+    }
 
     const QString err = obj.value("error").toString();
 
@@ -319,10 +308,6 @@ void SrunClient::onPeriodicPollFinished(QNetworkReply *reply) {
 
     const QString err = obj.value("error").toString();
     if (err == "ok") {
-        const bool wasEmpty = m_ip.isEmpty();
-        rememberIp(obj);
-        if (wasEmpty && !m_ip.isEmpty())
-            log("INFO", "已从在线状态获取 IP: " + m_ip);
         emit onlineStatusRefreshed(true, obj);
     } else if (err == "not_online_error") {
         emit onlineStatusRefreshed(false, {});
@@ -511,54 +496,6 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
 // 注销流程
 // ============================================================
 
-void SrunClient::queryIpThenLogout() {
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
-    log("HTTP", "GET " + fullUrl);
-
-    QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
-    applyCommonHeaders(req);
-    QNetworkReply *reply = m_nam->get(req);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
-        const QByteArray data = reply->readAll();
-        const auto netErr = reply->error();
-        const QString netErrStr = reply->errorString();
-        reply->deleteLater();
-
-        if (netErr != QNetworkReply::NoError) {
-            log("ERROR", "注销前查询在线地址失败: " + netErrStr);
-            emitLogoutFailed("注销前查询在线地址失败: " + netErrStr, {});
-            return;
-        }
-
-        bool ok = false;
-        const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
-        if (!ok) {
-            log("ERROR", "注销前在线信息解析失败");
-            emitLogoutFailed("注销前在线信息解析失败", {});
-            return;
-        }
-
-        rememberIp(obj);
-        const QString err = obj.value("error").toString();
-        if (err == "not_online_error") {
-            log("INFO", "当前不在线，无需注销");
-            setStage("已离线");
-            emitLogoutSucceeded(obj);
-            return;
-        }
-        if (m_ip.isEmpty()) {
-            log("ERROR", "未获取到在线 IP，无法注销");
-            emitLogoutFailed("未获取到在线 IP，无法注销", obj);
-            return;
-        }
-
-        log("INFO", QString("user=%1%2  ip=%3  ac_id=%4")
-                .arg(m_username, m_domain, m_ip, m_acId));
-        requestLogout();
-    });
-}
-
 void SrunClient::requestLogout() {
     setStage("注销中");
     log("STEP", "→ 请求注销");
@@ -566,8 +503,6 @@ void SrunClient::requestLogout() {
     const QList<QPair<QString, QString>> params = {
         {"action", "logout"},
         {"username", m_username + m_domain},
-        {"ip", m_ip},
-        {"ac_id", m_acId},
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
@@ -686,8 +621,6 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (ok) {
         const QString err = obj.value("error").toString();
-        if (err == "ok")
-            rememberIp(obj);
         if (err == m_pollSuccessError) {
             m_pollCallback(true, obj);
             return;
