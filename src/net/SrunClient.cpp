@@ -347,6 +347,12 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply) {
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
+    // 登录或注销还没结束时，探测结果不能改认证地址，也不能再触发一次登录。
+    if (m_busy) {
+        log("INFO", "认证流程进行中，忽略本次外网探测");
+        return;
+    }
+
     if (netErr != QNetworkReply::NoError) {
         emit internetUnreachable(netErrStr);
         return;
