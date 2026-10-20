@@ -14,13 +14,17 @@
 
 void MainWindow::applyOnlineInfo(const QJsonObject &info) {
     const QString username = info.value("user_name").toString();
-    const QString domain   = info.value("domain").toString();
-    const QString domainWithAt = domain.isEmpty() ? QString() : ("@" + domain);
+    const QString domain   = info.value("domain").toString().trimmed();
 
     if (!username.isEmpty()) {
         m_usernameEdit->setText(username);
     }
-    m_domainEdit->setText(domainWithAt);
+    // 域是本地登录参数。在线信息里的 domain 经常为空，空值不能把 @stu 清掉再写进配置。
+    if (!domain.isEmpty()) {
+        m_domainEdit->setText(domain.startsWith(QLatin1Char('@'))
+                                  ? domain
+                                  : QLatin1Char('@') + domain);
+    }
 
     // acId / password 服务器不返回，不动
 
