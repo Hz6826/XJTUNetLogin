@@ -38,6 +38,14 @@ public:
 
     void setLogSensitive(bool logSensitive);
 
+    void setBaseUrl(const QString &baseUrl);
+
+    QString baseUrl() const;
+
+    bool isBaseUrlOverridden() const;
+
+    inline static const QString kDefaultBaseUrl = "http://10.6.21.2";
+
 public slots:
     // 取消正在进行的 login/logout（含其内部 challenge/auth/verify 轮询），
     // 以及 abort 在飞的周期轮询请求。不改变账号/IP 上下文。
@@ -156,7 +164,7 @@ private:
     static constexpr int kLogoutWatchdogMs   = 30000;  // 注销整体看门狗
     static constexpr int kVerifyPollIntervalMs = 1000; // 登录/注销后确认在线间隔
 
-    QString m_baseUrl = "http://10.6.21.2";
+    QString m_baseUrl;
 };
 
 #endif // SRUNCLIENT_H

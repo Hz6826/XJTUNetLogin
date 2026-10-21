@@ -46,6 +46,7 @@ private slots:
     void onSaveConfigClicked();
     void onClearLogClicked();
     void onOpenLogDirClicked();
+    void onBaseUrlOverrideSaveBtnClicked();
 
     void onStageChanged(const QString &stage);
     void onLogMessage(const QString &level, const QString &msg);
@@ -177,6 +178,8 @@ private:
     QPushButton *m_pollTimerApplyBtn = nullptr;
 
     QComboBox *m_defaultCloseActionCombo = nullptr;
+    QLineEdit *m_baseUrlOverrideEdit = nullptr;
+    QPushButton *m_baseUrlOverrideSaveBtn = nullptr;
 
     QLabel *m_fullIconLabel = nullptr;
     QLabel *m_versionCheckLabel = nullptr;

@@ -287,6 +287,8 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onPollTimerApplyBtnClicked);
     connect(m_defaultCloseActionCombo, QOverload<int>::of(&QComboBox::activated),
             this, &MainWindow::saveConfigSilently);
+    connect(m_baseUrlOverrideSaveBtn, &QPushButton::clicked,
+        this, &MainWindow::onBaseUrlOverrideSaveBtnClicked);
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);

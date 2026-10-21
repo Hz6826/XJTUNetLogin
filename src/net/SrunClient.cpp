@@ -39,7 +39,7 @@ void SrunClient::setStage(const QString &stage) {
 // ============================================================
 
 void SrunClient::applyCommonHeaders(QNetworkRequest &req) const {
-    SrunHttpUtils::applyCommonHeaders(req, m_baseUrl);
+    SrunHttpUtils::applyCommonHeaders(req, baseUrl());
 }
 
 void SrunClient::emitLoginSucceeded(const QJsonObject &info) {
@@ -161,7 +161,15 @@ void SrunClient::cancel() {
 }
 
 void SrunClient::reset() {
-    cancel();
+    // 静默中止：不 emit operationCancelled，避免 reset 时 UI 误弹“操作已取消”
+    if (m_operation != OpNone) {
+        log("INFO", "reset: 中止当前操作");
+        m_operation = OpNone;
+        m_cancelled = true;
+        abortOpReplies();
+        disarmWatchdog();
+        m_cancelled = false;
+    }
 
     if (m_pollTimer) m_pollTimer->stop();
     m_periodicPollInFlight = false;
@@ -231,7 +239,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
 
     log("STEP", "========== 开始注销流程 ==========");
     log("INFO", QString("user=%1%2")
-            .arg(maskIfNeeded(m_username), m_domain, m_ip, m_acId));
+            .arg(maskIfNeeded(m_username), m_domain));
 
     requestLogout();
 }
@@ -243,7 +251,7 @@ void SrunClient::logout(const QString &username, const QString &acId,
 void SrunClient::queryOnline(bool silent) {
     if (!silent) log("STEP", "→ 查询在线状态");
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(baseUrl());
     if (!silent) log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
@@ -372,11 +380,11 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply) {
                 newBase += ":" + QString::number(locUrl.port());
             }
 
-            if (newBase != m_baseUrl) {
+            if (newBase != baseUrl()) {
                 m_baseUrl = newBase;
-                log("INFO", "检测到 captive portal，服务器地址更新为：" + m_baseUrl);
+                log("INFO", "检测到 captive portal，服务器地址更新为：" + baseUrl());
             }
-            emit captivePortalDetected(m_baseUrl);
+            emit captivePortalDetected(baseUrl());
             return;
         }
     }
@@ -413,15 +421,35 @@ void SrunClient::stopPolling() {
 }
 
 void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
-    if (m_pollTimer) {
-        m_pollTimer->setInterval(intervalMs);
-        m_pollTimer->start();
-        doPeriodicPoll();  // 点击按钮后立即执行一次
+    // timer 还没创建时直接走 startPolling，否则这里静默什么都不做
+    if (!m_pollTimer) {
+        startPolling(intervalMs);
+        return;
     }
+    m_pollTimer->setInterval(intervalMs);
+    m_pollTimer->start();
+    doPeriodicPoll();  // 点击按钮后立即执行一次
 }
 
 void SrunClient::setLogSensitive(const bool logSensitive) {
     m_logSensitive = logSensitive;
+}
+
+// ============================================================
+// 服务器地址
+// ============================================================
+
+void SrunClient::setBaseUrl(const QString &baseUrl) {
+    m_baseUrl = baseUrl;
+    log("INFO", "服务器地址设置为：" + this->baseUrl());
+}
+
+QString SrunClient::baseUrl() const {
+    return m_baseUrl.isEmpty() ? kDefaultBaseUrl : m_baseUrl;
+}
+
+bool SrunClient::isBaseUrlOverridden() const {
+    return !m_baseUrl.isEmpty();
 }
 
 void SrunClient::doPeriodicPoll() {
@@ -434,7 +462,7 @@ void SrunClient::doPeriodicPoll() {
     }
     m_periodicPollInFlight = true;
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(baseUrl());
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};
     applyCommonHeaders(req);
     QNetworkReply *reply = m_nam->get(req);
@@ -491,7 +519,7 @@ void SrunClient::requestChallenge() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/get_challenge?%2")
-            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
+            .arg(baseUrl(), SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
@@ -591,7 +619,7 @@ void SrunClient::requestAuth() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
+            .arg(baseUrl(), SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
@@ -678,7 +706,7 @@ void SrunClient::requestLogout() {
     };
 
     const QString fullUrl = QString("%1/cgi-bin/srun_portal?%2")
-            .arg(m_baseUrl, SrunHttpUtils::buildQuery(params));
+            .arg(baseUrl(), SrunHttpUtils::buildQuery(params));
 
     log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
@@ -763,7 +791,7 @@ void SrunClient::doPollStep() {
     log("STEP", QString("→ 第 %1/%2 次查询在线状态")
             .arg(m_pollCheckCount).arg(m_pollMaxChecks));
 
-    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(m_baseUrl);
+    const QString fullUrl = QString("%1/cgi-bin/rad_user_info").arg(baseUrl());
     log("HTTP", "GET " + maskIfNeeded(fullUrl));
 
     QNetworkRequest req{QUrl::fromEncoded(fullUrl.toUtf8())};

@@ -91,6 +91,7 @@ Config Config::fromJson(const QJsonObject &root) {
     c.password = authCfg.value("password").toString();
     c.acId = authCfg.value("acId").toString("1");
     c.domain = authCfg.value("domain").toString("@stu");
+    c.baseUrlOverride = authCfg.value("baseUrlOverride").toString("");
 
     const QJsonObject autoCfg = root.value("auto").toObject();
 
@@ -123,6 +124,7 @@ QJsonObject Config::toJson() const {
     authCfg["password"] = password;
     authCfg["acId"] = acId;
     authCfg["domain"] = domain;
+    authCfg["baseUrlOverride"] = baseUrlOverride;
 
     QJsonObject autoCfg;
     autoCfg["autoStart"] = autoStart;
