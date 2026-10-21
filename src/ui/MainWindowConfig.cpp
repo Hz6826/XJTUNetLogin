@@ -80,9 +80,6 @@ void MainWindow::saveWindowGeometryToConfig() {
 }
 
 void MainWindow::applyLogExpanded(bool expanded) {
-    const bool wasExpanded = m_detailTab->isVisible();
-    if (wasExpanded == expanded) return;
-
     m_detailTab->setVisible(expanded);
     if (expanded) {
         m_toggleLogBtn->setIcon(m_iconChevronUp);
