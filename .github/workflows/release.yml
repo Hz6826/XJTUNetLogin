@@ -81,6 +81,29 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
+      # ---------- 收集许可证（便携版+安装版共用）----------
+      - name: Collect LICENSES
+        shell: pwsh
+        run: |
+          $dst = "build\bin\LICENSES"
+          New-Item -ItemType Directory -Force -Path "$dst\Qt" | Out-Null
+
+          # 1) Qt 的许可证全文 —— 直接从 Qt 安装目录拷
+          $qtLic = Join-Path $env:QT_ROOT_DIR "LICENSES"
+          if (Test-Path $qtLic) {
+            Copy-Item "$qtLic\*" -Destination "$dst\Qt\" -Recurse -Force
+            Write-Host "Copied $((Get-ChildItem $qtLic -Recurse -File).Count) files from Qt LICENSES"
+          } else {
+            Write-Host "::warning::Qt LICENSES not found at $qtLic"
+          }
+
+          # 2) 仓库自带的 LICENSES（含 NOTICE.txt / GCC-exception / MIT）
+          Copy-Item "packaging\LICENSES\*" -Destination $dst -Recurse -Force
+
+          # 打印核对
+          Get-ChildItem $dst -Recurse -File |
+            ForEach-Object { Write-Host "  $($_.FullName.Replace("$PWD\",''))" }
+
       # ---------- 便携版 ----------
       - name: Prepare portable
         shell: pwsh

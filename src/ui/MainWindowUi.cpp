@@ -13,6 +13,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDesktopServices>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -415,8 +416,14 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     m_versionCheckLabel->installEventFilter(this);
     detailTextCol->addWidget(m_versionCheckLabel);
 
-    auto *qtNoticeLabel = new QLabel(
-    QString("Powered by Qt %1 · LGPLv3").arg(QT_VERSION_STR));
+    auto *qtNoticeLabel = new QLabel(QString(
+    "Powered by Qt %1 · LGPLv3 · <a href=\"openLicenses\">开源许可</a>")
+    .arg(QT_VERSION_STR));
+    qtNoticeLabel->setOpenExternalLinks(false);
+    connect(qtNoticeLabel, &QLabel::linkActivated, this, [](const QString &) {
+        const QString p = QCoreApplication::applicationDirPath() + "/LICENSES";
+        QDesktopServices::openUrl(QUrl::fromLocalFile(p + "/NOTICE.txt"));
+    });
     qtNoticeLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     qtNoticeLabel->setToolTip(QString(
         "Qt %1 (LGPLv3)\nhttps://www.qt.io/licensing").arg(QT_VERSION_STR));
