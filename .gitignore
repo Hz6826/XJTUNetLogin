@@ -1,2 +1,25 @@
+# ---------- IDE ----------
 .idea
+.vscode
+*.user
+
+# ---------- 构建产物 ----------
+build/
+cmake-build-*/
+out/
+
+# ---------- 打包产物 ----------
+dist/
+portable/
+*.zip
+
+# ---------- 本地运行时数据（可能含明文密码/敏感日志） ----------
+config.json
+portable.flag
+logs/
+
+# ---------- CMake / CLion ----------
+CMakeUserPresets.json
+
+# ---------- 其他 ----------
 local

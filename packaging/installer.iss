@@ -50,6 +50,8 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible
+; 程序只提供 64 位构建，32 位系统直接拒绝安装，避免装上了却无法运行
+ArchitecturesAllowed=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=..\resources\windows\app.ico
 LicenseFile=..\LICENSE
