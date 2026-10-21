@@ -13,6 +13,9 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
+
+#include <algorithm>   // std::clamp
 
 namespace {
 
@@ -21,8 +24,38 @@ namespace {
         return QCoreApplication::applicationDirPath() + "/config.json";
     }
 
+    // 独立的便携标记文件：避免D"配置文件被备份走"后便携模式丢失
+    QString portableFlagPath() {
+        return QCoreApplication::applicationDirPath() + "/portable.flag";
+    }
+
     bool isPortableMode() {
-        return QFile::exists(portableConfigPath());
+        // 新标记优先；config.json 存在视为兼容旧版便携部署
+        return QFile::exists(portableFlagPath())
+            || QFile::exists(portableConfigPath());
+    }
+
+    // 损坏的配置文件改名备份，绝不静默覆盖
+    void backupCorrupted(const QString &path) {
+        const QString bak = path + ".bak";
+        QFile::remove(bak);   // 只保留最近一份备份
+        if (!QFile::rename(path, bak)) {
+            qWarning() << "无法备份损坏的配置文件:" << path
+                       << "->" << bak;
+            return;
+        }
+        qWarning() << "损坏的配置文件已备份为:" << bak;
+
+        // 便携版补一个 portable.flag，保证 portable 状态不丢
+        if (path == portableConfigPath()
+            && !QFile::exists(portableFlagPath())) {
+            QFile flag(portableFlagPath());
+            if (flag.open(QIODevice::WriteOnly)) {
+                flag.close();
+            } else {
+                qWarning() << "无法创建便携标记:" << portableFlagPath();
+            }
+        }
     }
 
 } // namespace
@@ -50,6 +83,11 @@ Config Config::load() {
     const QString path = filePath();
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
+        // 文件存在但打不开也要提示，纯路径不存在则安静返回默认值
+        if (QFile::exists(path)) {
+            qWarning() << "无法读取配置文件:" << path
+                       << "错误:" << file.errorString();
+        }
         return {};
     }
     QByteArray data = file.readAll();
@@ -70,11 +108,13 @@ Config Config::load() {
     if (err.error != QJsonParseError::NoError) {
         qWarning() << "config.json 解析失败:" << err.errorString()
                    << "@ offset" << err.offset;
+        backupCorrupted(path);   // 先备份，再回默认，绝不静默覆盖
         return {};
     }
 
     if (!doc.isObject()) {
         qWarning() << "config.json 根节点不是 JSON 对象";
+        backupCorrupted(path);   // 同上
         return {};
     }
 
@@ -160,20 +200,31 @@ bool Config::save() const {
         return false;
     }
 
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    // QSaveFile：先写临时文件，commit() 时原子 rename 覆盖；
+    // 磁盘满 / 崩溃 / 断电时原文件保持完好。
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
         qWarning() << "无法写入文件:" << path
-        << "错误:" << file.errorString();
+                   << "错误:" << file.errorString();
         return false;
     }
 
-    const QByteArray bytes = QJsonDocument(toJson()).toJson(QJsonDocument::Indented);
+    const QByteArray bytes =
+        QJsonDocument(toJson()).toJson(QJsonDocument::Indented);
 
-    if (file.write(bytes) == -1) {
-        qWarning() << "写入文件失败:" << path;
+    // 按字节数校验，write() 返回 -1 或短写都要判失败
+    if (const qint64 written = file.write(bytes); written != bytes.size()) {
+        qWarning() << "写入文件失败:" << path
+                   << "错误:" << file.errorString();
+        file.cancelWriting();   // 丢弃临时文件，原文件不受影响
         return false;
     }
-    file.close();
+
+    if (!file.commit()) {
+        qWarning() << "提交文件失败:" << path
+                   << "错误:" << file.errorString();
+        return false;
+    }
 
 #ifdef Q_OS_UNIX
     QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner);
