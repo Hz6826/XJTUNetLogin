@@ -10,9 +10,12 @@
 #include <QComboBox>
 #include <QLayout>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QTabWidget>
 #include <QToolButton>
 #include <QWidget>
+
+#include "net/SrunClient.h"
 
 void MainWindow::loadConfigToUi() {
     m_usernameEdit->setText(m_config.username);
@@ -27,6 +30,9 @@ void MainWindow::loadConfigToUi() {
     m_detailTab->setCurrentIndex(m_config.currentTab);
 
     m_pollTimerIntervalEdit->setPlaceholderText(QString("当前设置: %1").arg(QString::number(m_config.pollTimerIntervalMs)));
+    m_baseUrlOverrideEdit->setText(m_config.baseUrlOverride);
+
+    m_client->setBaseUrl(m_config.baseUrlOverride);
 
     const int idx = m_defaultCloseActionCombo->findData(
         static_cast<int>(m_config.closeAction));
@@ -52,6 +58,7 @@ bool MainWindow::saveConfigSilently() {
 
     m_config.closeAction   = static_cast<CloseAction>(
         m_defaultCloseActionCombo->currentData().toInt());
+    m_config.baseUrlOverride = m_baseUrlOverrideEdit->text();
 
     return m_config.save();
 }
@@ -121,4 +128,48 @@ void MainWindow::resizeForLogState(bool expanded) {
 bool MainWindow::savePollTimerInterval(int interval) {
     m_config.pollTimerIntervalMs = interval;
     return m_config.save();
+}
+
+void MainWindow::onBaseUrlOverrideSaveBtnClicked() {
+    if (m_onlineState == OnlineState::Busy) {
+        QMessageBox::warning(this, "请稍候", "登录/注销进行中，请结束后再修改服务器 URL");
+        return;
+    }
+    QString text = m_baseUrlOverrideEdit->text().trimmed();
+    if (!text.isEmpty()) {
+        QUrl u(text);
+        if (!u.isValid() || u.scheme().isEmpty() || u.host().isEmpty()) {
+            QMessageBox::warning(this, "URL 无效", "请输入形如 http://host 的完整 URL");
+            return;
+        }
+        // 去掉尾部斜杠，保证与 path 拼接一致
+        while (text.endsWith('/')) text.chop(1);
+        m_baseUrlOverrideEdit->setText(text);
+    }
+    if (m_baseUrlOverrideEdit->text().isEmpty()) {
+        if (m_config.baseUrlOverride.isNull() || m_config.baseUrlOverride.isEmpty()) {
+            QMessageBox::warning(this, "失败", QString("请先填入值再应用，当前已在使用默认URL: %1")
+                .arg(SrunClient::kDefaultBaseUrl));
+            return;
+        }
+        if (!saveConfigSilently()) {
+            QMessageBox::critical(this, "保存失败", "配置写入失败，请检查文件权限");
+            return;
+        }
+        m_client->setBaseUrl(m_config.baseUrlOverride);
+        QMessageBox::information(this, "成功", QString("已恢复默认服务器URL为%1")
+            .arg(SrunClient::kDefaultBaseUrl));
+        appendLog("INFO", QString("已恢复默认服务器URL为%1")
+            .arg(SrunClient::kDefaultBaseUrl));
+        return;
+    }
+    if (!saveConfigSilently()) {
+        QMessageBox::critical(this, "保存失败", "配置写入失败，请检查文件权限");
+        return;
+    }
+    m_client->setBaseUrl(m_config.baseUrlOverride);
+    QMessageBox::information(this, "成功", QString("已更新服务器URL为%1")
+        .arg(m_baseUrlOverrideEdit->text()));
+    appendLog("INFO", QString("已更新服务器URL为%1")
+        .arg(m_baseUrlOverrideEdit->text()));
 }

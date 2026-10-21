@@ -27,6 +27,9 @@
 #include <QIntValidator>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QScrollArea>
+
+#include "net/SrunClient.h"
 
 void MainWindow::loadIcons() {
     const QString dir = Theme::isDark() ? ":/icons/dark" : ":/icons/light";
@@ -234,12 +237,30 @@ void MainWindow::buildUiInfoPanel(QWidget *parent) {
 }
 
 void MainWindow::buildUiSettingsPanel(QWidget *parent) {
-    auto *uiSettingsLayout = new QVBoxLayout(parent);
+    // 外层：只负责把 scrollArea 铺满 tab 页
+    auto *outerLayout = new QVBoxLayout(parent);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSpacing(0);
+
+    auto *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);                          // 关键：内容跟随视口宽度
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    // 内层：真正的设置内容
+    auto *content = new QWidget;
+    auto *uiSettingsLayout = new QVBoxLayout(content);
+    uiSettingsLayout->setContentsMargins(8, 8, 8, 8);
+    uiSettingsLayout->setSpacing(8);
+
     buildUiAutoLogin(uiSettingsLayout);
     buildUiPollingSetting(uiSettingsLayout);
     buildUiMiscSetting(uiSettingsLayout);
-
     uiSettingsLayout->addStretch();
+
+    scroll->setWidget(content);
+    outerLayout->addWidget(scroll);
 }
 
 void MainWindow::buildUiAutoLogin(QVBoxLayout *uiSettingsLayout) {
@@ -289,12 +310,14 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
 
 void MainWindow::buildUiMiscSetting(QVBoxLayout *uiSettingsLayout) {
     auto *miscGroup = new QGroupBox("杂项");
-    auto *miscLayout = new QHBoxLayout(miscGroup);
+    auto *miscLayoutLines = new QVBoxLayout(miscGroup);
+
+    auto *miscLayout1 = new QHBoxLayout;
 
     m_defaultCloseActionCombo = new QComboBox;
 
-    auto *defaultCloseActionLabel = new QLabel("关闭按钮行为: ");
-    miscLayout->addWidget(defaultCloseActionLabel);
+    auto *defaultCloseActionLabel = new QLabel("关闭按钮行为");
+    miscLayout1->addWidget(defaultCloseActionLabel);
 
     m_defaultCloseActionCombo->addItem("每次询问",
     static_cast<int>(CloseAction::Ask));
@@ -307,8 +330,25 @@ void MainWindow::buildUiMiscSetting(QVBoxLayout *uiSettingsLayout) {
         static_cast<int>(CloseAction::Ask));
     m_defaultCloseActionCombo->setCurrentIndex(idx);
 
-    miscLayout->addWidget(m_defaultCloseActionCombo);
-    miscLayout->addStretch();
+    miscLayout1->addWidget(m_defaultCloseActionCombo);
+    miscLayout1->addStretch();
+    miscLayoutLines->addLayout(miscLayout1);
+
+    auto *miscLayout2 = new QHBoxLayout;
+
+    auto *baseUrlOverrideLabel = new QLabel("服务器URL");
+    baseUrlOverrideLabel->setToolTip(QString("覆盖默认及302探测得到的服务器url，未覆盖时默认使用 %1")
+        .arg(SrunClient::kDefaultBaseUrl));
+    baseUrlOverrideLabel->installEventFilter(this);
+    miscLayout2->addWidget(baseUrlOverrideLabel);
+    m_baseUrlOverrideEdit = new QLineEdit;
+    m_baseUrlOverrideEdit->setPlaceholderText(SrunClient::kDefaultBaseUrl);
+    miscLayout2->addWidget(m_baseUrlOverrideEdit, 1);
+    m_baseUrlOverrideSaveBtn = new QPushButton;
+    m_baseUrlOverrideSaveBtn->setText("应用");
+    miscLayout2->addWidget(m_baseUrlOverrideSaveBtn);
+
+    miscLayoutLines->addLayout(miscLayout2);
 
     uiSettingsLayout->addWidget(miscGroup);
 }

@@ -20,6 +20,7 @@ struct Config {
     QString password;
     QString acId   = "1";
     QString domain = "@stu";
+    QString baseUrlOverride;
 
     // ---------- auto 分组 ----------
     bool autoStart = false;
