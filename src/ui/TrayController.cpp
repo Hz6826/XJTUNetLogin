@@ -182,7 +182,14 @@ void TrayController::onAuthRequested() {
 }
 
 void TrayController::onQuit() {
+    if (m_tray)
+        m_tray->hide(); // 先收起托盘图标，避免退出后残留“幽灵”图标
+
+    // 走正常关闭流程，让 closeEvent 保存窗口几何与配置
     m_window->setForceQuit(true); // 让 closeEvent 放行
+    m_window->close();
+
+    // 正常情况下最后窗口关闭已触发退出；这里再显式退出作为兜底
     qApp->quit();
 }
 
