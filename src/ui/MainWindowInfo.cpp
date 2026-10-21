@@ -98,6 +98,10 @@ void MainWindow::clearOnlineInfoPanel() {
     m_infoUsedTimeLabel->setText("-");
     m_infoBalanceLabel->setText("-");
     m_infoDeviceTotalLabel->setText("-");
+    // customTooltip 是 eventFilter 优先读取的属性，必须一并清掉，否则会显示注销前的旧值
+    m_infoUsedFlowLabel->setProperty("customTooltip", QString());
+    m_infoUsedTimeLabel->setProperty("customTooltip", QString());
+    m_infoDeviceTotalLabel->setProperty("customTooltip", QString());
     m_infoDeviceTotalLabel->setToolTip(QString());
 }
 
