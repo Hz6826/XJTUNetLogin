@@ -13,6 +13,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QTimer>
 
 void MainWindow::onAuthClicked() {
@@ -164,6 +165,15 @@ void MainWindow::onLogoutFailed(const QString &msg, const QJsonObject &) {
     }
 
     setOnlineState(OnlineState::Offline);
+    m_pendingAutoLogin = false;
+
+    // 注销失败也可能是服务器端其实已经下线。此时若还允许自动登录，
+    // 下一轮轮询会立刻把用户重新登回去，让他误以为注销没有生效。
+    if (m_autoLoginCheck->isChecked()) {
+        m_autoLoginCheck->setChecked(false);
+        appendLog("INFO", "注销失败，已取消自动登录（避免被自动重新登录）");
+    }
+
     m_client->queryOnline(true);
 }
 
@@ -211,12 +221,18 @@ void MainWindow::onAutoLoginToggled(bool on) {
 
 void MainWindow::onAutoStartToggled(bool on) {
     const bool ok = AutoStart::setEnabled(on);
-    saveConfigSilently();
-    if (ok) {
-        appendLog("INFO", on ? "已启用开机自启" : "已取消开机自启");
-    } else {
+    if (!ok) {
+        // 设置失败时把勾选框回滚，保证 UI 与注册表真实状态一致
+        {
+            const QSignalBlocker blocker(m_autoStartCheck);
+            m_autoStartCheck->setChecked(!on);
+        }
+        saveConfigSilently();
         appendLog("ERROR", "开机自启设置失败，可能被安全软件阻止");
+        return;
     }
+    saveConfigSilently();
+    appendLog("INFO", on ? "已启用开机自启" : "已取消开机自启");
 }
 
 void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
@@ -230,7 +246,13 @@ void MainWindow::onCaptivePortalDetected(const QString &newBaseUrl) {
 
 void MainWindow::onPollTimerApplyBtnClicked() {
     bool ok = false;
-    int interval = m_pollTimerIntervalEdit->text().toInt(&ok);
+    const QString text = m_pollTimerIntervalEdit->text().trimmed();
+    int interval = text.toInt(&ok);
+    if (text.isEmpty()) {
+        // 未填写时按“重置并应用”的语义沿用当前配置，而不是报解析错误
+        interval = m_config.pollTimerIntervalMs;
+        ok = true;
+    }
     if (!ok) {
         QMessageBox::critical(this, "错误", "数字解析失败！");
         m_pollTimerIntervalEdit->setFocus();

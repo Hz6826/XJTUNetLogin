@@ -11,6 +11,11 @@
 #include <QVersionNumber>
 
 void MainWindow::checkVersion() {
+    // 检查进行中时忽略重复点击，避免并发请求互相覆盖结果
+    if (m_versionCheckInFlight)
+        return;
+    m_versionCheckInFlight = true;
+
     appendLog("STEP", "→ 检查新版本");
     m_versionCheckLabel->setText(QStringLiteral("正在检查新版本…"));
 
@@ -44,6 +49,7 @@ void MainWindow::checkVersion() {
 
 void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
     reply->deleteLater();
+    m_versionCheckInFlight = false; // 本次检查结束，允许再次点击重试
 
     const int status = reply->attribute(
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -94,9 +100,6 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
                          .arg(AppInfo::Version, latestStr));
 
     if (latest > current) {
-        m_hasNewVersion    = true;
-        m_latestVersionUrl = url;
-
         appendLog("SUCCESS", "发现新版本: " + tag);
 
         m_versionCheckLabel->setTextFormat(Qt::RichText);
@@ -106,7 +109,6 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
         m_versionCheckLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
         m_versionCheckLabel->setCursor(Qt::PointingHandCursor);
     } else {
-        m_hasNewVersion = false;
         appendLog("INFO", "已是最新版本");
 
         m_versionCheckLabel->setText(QStringLiteral("已是最新版本 (%1)").arg(tag));

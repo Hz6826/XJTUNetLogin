@@ -425,7 +425,10 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
         const QString p = QCoreApplication::applicationDirPath() + "/LICENSES";
         QDesktopServices::openUrl(QUrl::fromLocalFile(p + "/NOTICE.txt"));
     });
-    qtNoticeLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    // 只设 TextSelectableByMouse 会覆盖 QLabel 默认的链接交互，导致“开源许可”点不动；
+    // 同时保留文本可选中和链接可点击。
+    qtNoticeLabel->setTextInteractionFlags(
+        Qt::TextSelectableByMouse | Qt::LinksAccessibleByMouse);
     qtNoticeLabel->setToolTip(QString(
         "Qt %1 (LGPLv3)\nhttps://www.qt.io/licensing").arg(QT_VERSION_STR));
     qtNoticeLabel->installEventFilter(this);
