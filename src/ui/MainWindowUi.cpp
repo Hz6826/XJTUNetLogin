@@ -194,6 +194,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
         "  font-size: 12px;"
         "}"
     );
+    m_logTextEdit->setMaximumBlockCount(1000);
     layout->addWidget(m_logTextEdit, 1);
 }
 
