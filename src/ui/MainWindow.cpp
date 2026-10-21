@@ -122,11 +122,12 @@ void MainWindow::changeEvent(QEvent *event) {
         if (nowDark != m_lastDarkTheme) {
             m_lastDarkTheme = nowDark;
             loadIcons();
-            m_toggleLogBtn->setIcon(m_config.logExpanded
-                                        ? m_iconChevronUp
-                                        : m_iconChevronDown);
-            m_clearLogBtn->setIcon(m_iconTrash);
-            m_openLogDirBtn->setIcon(m_iconFolder);
+            if (m_toggleLogBtn)
+                m_toggleLogBtn->setIcon(m_config.logExpanded ? m_iconChevronUp : m_iconChevronDown);
+            if (m_clearLogBtn)
+                m_clearLogBtn->setIcon(m_iconTrash);
+            if (m_openLogDirBtn)
+                m_openLogDirBtn->setIcon(m_iconFolder);
         }
     }
     QMainWindow::changeEvent(event);
