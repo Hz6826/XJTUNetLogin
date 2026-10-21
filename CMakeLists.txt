@@ -29,7 +29,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # ---------- 查找 Qt 模块 ----------
-find_package(Qt6 REQUIRED COMPONENTS
+# 6.8 为最低支持版本（与 CI 的 QT_VERSION 对齐），本地更新版本（如 6.11）仍可用
+find_package(Qt6 6.8 REQUIRED COMPONENTS
         Core
         Gui
         Widgets
@@ -103,8 +104,32 @@ add_custom_target(appinfo DEPENDS ${APPINFO_GENERATED})
 add_dependencies(XJTUNetLogin appinfo)
 
 if (WIN32)
+    # ---------- 生成 Windows 版本资源（VERSIONINFO） ----------
+    # FILEVERSION/PRODUCTVERSION 必须是 4 段逗号分隔数字，
+    # 所以把 XJTU_NUMERIC_VERSION（如 "1.0.0"）补齐/截断成 4 段。
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
+
+    string(REPLACE "." ";" _xjtu_ver_parts "${XJTU_NUMERIC_VERSION}")
+    list(APPEND _xjtu_ver_parts "0" "0" "0" "0")
+    list(GET _xjtu_ver_parts 0 _xjtu_ver_major)
+    list(GET _xjtu_ver_parts 1 _xjtu_ver_minor)
+    list(GET _xjtu_ver_parts 2 _xjtu_ver_patch)
+    list(GET _xjtu_ver_parts 3 _xjtu_ver_tweak)
+    set(XJTU_RC_FILEVERSION
+            "${_xjtu_ver_major},${_xjtu_ver_minor},${_xjtu_ver_patch},${_xjtu_ver_tweak}")
+
+    # 配置期生成：版本号变化时 configure_file 会更新，windres 随之重编
+    set(VERSION_RC_FILE "${CMAKE_BINARY_DIR}/generated/version.rc")
+    configure_file(
+            "${CMAKE_SOURCE_DIR}/cmake/Version.rc.in"
+            "${VERSION_RC_FILE}"
+            @ONLY
+    )
+    set_source_files_properties("${VERSION_RC_FILE}" PROPERTIES GENERATED TRUE)
+
     target_sources(XJTUNetLogin PRIVATE
             resources/windows/app.rc
+            "${VERSION_RC_FILE}"
     )
 endif()
 

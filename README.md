@@ -27,13 +27,18 @@
 
 </div>
 
-请在 [Releases](https://github.com/Hz6826/XJTUNetLogin/releases) 界面获取最新版本。其中可执行程序为 **Inno Setup** 打包的安装版，名称包含 `portal` 的压缩包为便携版。
+请在 [Releases](https://github.com/Hz6826/XJTUNetLogin/releases) 界面获取最新版本。其中可执行程序为 **Inno Setup** 打包的安装版，名称包含 `Portable` 的压缩包（`XJTUNetLogin-Portable-<版本>.zip`）为便携版。
 
 > [!IMPORTANT]
 > 如果要使用开机自启功能，建议使用安装版！
 
 > [!NOTE]
-> 两个版本文件并无差异。若主程序同目录下含有 `config.json`，会自动改为读取该文件，并转换为便携版，将日志存储在 `./logs/` 下。
+> 两个版本的程序本体相同。便携模式判定：主程序同目录下存在 `config.json` 或 `portable.flag` 时，按便携版运行——读取同目录的 `config.json`，日志写到同目录的 `./logs/` 下。安装版则使用 `%APPDATA%\Hz6826\XJTUNetLogin\config.json`，日志在同目录的 `logs\` 下。
+
+> [!WARNING]
+> **安全说明**
+> - 配置文件里的密码目前以**明文**保存（安装版在 `%APPDATA%\Hz6826\XJTUNetLogin\config.json`，便携版在主程序同目录）。请勿分享 `config.json`，也尽量不要把便携版放在公共或共享目录中。
+> - 日志默认对 `token`、`password`、`chksum` 等敏感字段脱敏。在“关于”页双击应用图标可以关闭脱敏（状态会保存到配置，再次双击恢复）；关闭后日志会包含明文敏感信息，请勿随意分享日志文件。
 
 ## 功能列表
 
@@ -80,11 +85,11 @@
 
 ### 注销
 
-携带 `username`、`ip`、`ac_id` 等，向服务器 `/cgi-bin/srun_portal` 发送 `GET` 请求，`action` 为 `logout`。若注销成功，`pollOnlineStatus` 确认在线状态，默认 3 次。
+携带 `action=logout` 与 `username`（用户名与域名后缀拼接，如 `user@stu`），向服务器 `/cgi-bin/srun_portal` 发送 `GET` 请求；当前实现不再携带 `ip`、`ac_id` 等参数。若注销请求被接受，再通过 `pollOnlineStatus` 确认已下线，默认 3 次。
 
 ### 查询
 
-携带 `username`、`ip`、`ac_id` 等，向服务器 `/cgi-bin/rad_user_info` 发送 `GET` 请求，服务器返回 JSONP。
+直接向服务器 `/cgi-bin/rad_user_info` 发送 `GET` 请求（当前实现不再附带 `username`/`ip`/`ac_id` 等查询参数），服务器返回 JSONP。
 
 ## 许可证
 

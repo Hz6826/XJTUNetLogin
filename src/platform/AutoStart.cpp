@@ -151,7 +151,18 @@ namespace AutoStart {
         QString launchLabel() {
             return "com.hz6826." + AutoStart::identifier().toLower();
         }
-    }
+
+        // 写入 plist 的 <string> 内容前做 XML 转义（& 必须最先处理）
+        QString xmlEscape(const QString &text) {
+            QString escaped = text;
+            escaped.replace(QLatin1Char('&'), QStringLiteral("&amp;"));
+            escaped.replace(QLatin1Char('<'), QStringLiteral("&lt;"));
+            escaped.replace(QLatin1Char('>'), QStringLiteral("&gt;"));
+            escaped.replace(QLatin1Char('"'), QStringLiteral("&quot;"));
+            escaped.replace(QLatin1Char('\''), QStringLiteral("&apos;"));
+            return escaped;
+        }
+    } // namespace
 
     bool isEnabled() {
         return QFile::exists(plistPath());
@@ -191,7 +202,7 @@ namespace AutoStart {
             "    <true/>\n"
             "</dict>\n"
             "</plist>\n"
-        ).arg(label, exePath);
+        ).arg(xmlEscape(label), xmlEscape(exePath));
 
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -212,6 +223,16 @@ namespace AutoStart {
             const QString configHome = QStandardPaths::writableLocation(
                 QStandardPaths::GenericConfigLocation);
             return configHome + "/autostart/" + AutoStart::identifier() + ".desktop";
+        }
+
+        // Desktop Entry 规范：含空格的路径要加双引号，\ " ` $ 需反斜杠转义
+        QString desktopExecEscape(const QString &path) {
+            QString escaped = path;
+            escaped.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
+            escaped.replace(QLatin1Char('"'), QStringLiteral("\\\""));
+            escaped.replace(QLatin1Char('`'), QStringLiteral("\\`"));
+            escaped.replace(QLatin1Char('$'), QStringLiteral("\\$"));
+            return QStringLiteral("\"") + escaped + QStringLiteral("\"");
         }
 
     } // namespace
@@ -242,7 +263,7 @@ namespace AutoStart {
             "Exec=%2\n"
             "Terminal=false\n"
             "X-GNOME-Autostart-enabled=true\n"
-        ).arg(AutoStart::identifier(), exePath);
+        ).arg(AutoStart::identifier(), desktopExecEscape(exePath));
 
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
