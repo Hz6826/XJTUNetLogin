@@ -1,0 +1,19 @@
+XJTUNetLogin — Third-Party Notices
+===================================
+
+本软件使用了以下第三方组件：
+
+1. Qt 6 (https://www.qt.io)
+   License: GNU Lesser General Public License v3.0 (LGPL-3.0)
+   本软件以动态链接方式使用 Qt 库，用户可以将 Qt 库替换为自己编译的
+   版本。完整的 LGPL-3.0 文本见 LICENSES\Qt\ 目录。
+
+2. MinGW-w64 运行时（libgcc_s_seh-1.dll, libstdc++-6.dll）
+   License: GPL-3.0-or-later WITH GCC Runtime Library Exception 3.1
+   以动态链接方式使用。完整文本见 LICENSES\GCC-exception-3.1.txt。
+
+3. winpthreads（libwinpthread-1.dll）
+   License: MIT
+
+4. 本软件自身
+   License: MIT
