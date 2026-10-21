@@ -10,6 +10,14 @@
 #include <QNetworkProxy>
 #include <QPointer>
 
+namespace {
+// 响应体日志预览：截断并去掉可能还原密码的材料（challenge / SRBX1 等）
+QString previewForLog(const QByteArray &data, int maxLen = 300) {
+    return SrunHttpUtils::redactSecrets(
+        SrunHttpUtils::previewBody(data, maxLen));
+}
+} // namespace
+
 // ============================================================
 // 构造
 // ============================================================
@@ -74,14 +82,31 @@ void SrunClient::emitLogoutFailed(const QString &msg, const QJsonObject &raw) {
     emit logoutFailed(msg, raw);
 }
 
-QString SrunClient::maskIfNeeded(const QString &text) const { // NOLINT(*-convert-member-functions-to-static)
+void SrunClient::finishPoll(bool success, const QJsonObject &obj) {
+    // 先取走再调用：回调里如果同步开启新流程，不会覆盖正在执行的闭包
+    PollCallback cb = std::move(m_pollCallback);
+    m_pollCallback = nullptr;
+    if (cb) cb(success, obj);
+}
+
+void SrunClient::updateIpFromOnlineInfo(const QJsonObject &obj) {
+    if (!m_ip.isEmpty()) return;
+
+    QString ip = obj.value("client_ip").toString();
+    if (ip.isEmpty()) ip = obj.value("online_ip").toString();
+    if (ip.isEmpty()) return;
+
+    m_ip = ip;
+    log("INFO", "已获取本机 IP: " + m_ip);
+}
+
+QString SrunClient::maskIfNeeded(const QString &text) const {
     if (text.isEmpty() || m_logSensitive) return text;
 
     if (text.startsWith(QLatin1String("http://")) ||
         text.startsWith(QLatin1String("https://"))) {
-        if (const auto qpos = text.indexOf(QLatin1Char('?')); qpos >= 0)
-            return text.left(qpos + 1) + QStringLiteral("****");
-        return text;
+        // 保留 path/参数名，只打码 password/info/chksum 等敏感值
+        return SrunHttpUtils::redactSecrets(text);
     }
     return QStringLiteral("****");
 }
@@ -129,6 +154,7 @@ void SrunClient::onWatchdogTimeout() {
     m_cancelled = true;
     abortOpReplies();
     m_cancelled = false;
+    m_pollCallback = nullptr;
     disarmWatchdog();
 
     switch (op) {
@@ -156,6 +182,7 @@ void SrunClient::cancel() {
     disarmWatchdog();
     m_cancelled = false;
     m_busy = false;
+    m_pollCallback = nullptr;
 
     emit operationCancelled();
 }
@@ -173,6 +200,8 @@ void SrunClient::reset() {
 
     if (m_pollTimer) m_pollTimer->stop();
     m_periodicPollInFlight = false;
+    m_periodicFailureCount = 0;
+    m_pollCallback = nullptr;
     if (m_periodicReply) {
         m_periodicReply->abort();
         m_periodicReply = nullptr;
@@ -280,7 +309,7 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    if (!silent) log("HTTP", "← 在线信息响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
+    if (!silent) log("HTTP", "← 在线信息响应: " + previewForLog(data, 300));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -292,13 +321,7 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
         return;
     }
 
-    if (m_ip.isEmpty()) {
-        const QString clientIp = obj.value("client_ip").toString();
-        if (!clientIp.isEmpty()) {
-            m_ip = clientIp;
-            if (!silent) log("INFO", "已获取本机 IP: " + m_ip);
-        }
-    }
+    updateIpFromOnlineInfo(obj);
 
     const QString err = obj.value("error").toString();
 
@@ -384,8 +407,13 @@ void SrunClient::onCheckInternetFinished(QNetworkReply *reply) {
             }
 
             if (newBase != baseUrl()) {
-                m_baseUrl = newBase;
-                log("INFO", "检测到 captive portal，服务器地址更新为：" + baseUrl());
+                if (m_baseUrlOverridden) {
+                    // 用户在设置里显式覆盖了服务器地址，探测结果只作提示
+                    log("INFO", "已手动设置服务器 URL，忽略探测到的地址：" + newBase);
+                } else {
+                    m_baseUrl = newBase;
+                    log("INFO", "检测到 captive portal，服务器地址更新为：" + baseUrl());
+                }
             }
             emit captivePortalDetected(baseUrl());
             return;
@@ -443,7 +471,31 @@ void SrunClient::setLogSensitive(const bool logSensitive) {
 // ============================================================
 
 void SrunClient::setBaseUrl(const QString &baseUrl) {
-    m_baseUrl = baseUrl;
+    const QString trimmed = baseUrl.trimmed();
+
+    if (trimmed.isEmpty()) {
+        m_baseUrl.clear();
+        m_baseUrlOverridden = false;
+        log("INFO", "服务器地址恢复默认：" + this->baseUrl());
+        return;
+    }
+
+    const QUrl url(trimmed);
+    if (!url.isValid() || url.host().isEmpty()
+        || (url.scheme() != QLatin1String("http")
+            && url.scheme() != QLatin1String("https"))) {
+        // 配置可能被手动改坏；保留当前可用地址，不让整体认证失效
+        log("WARN", "忽略无效的服务器地址：" + trimmed);
+        return;
+    }
+
+    QString normalized = trimmed;
+    while (normalized.endsWith(QLatin1Char('/'))) {
+        normalized.chop(1);
+    }
+
+    m_baseUrl = normalized;
+    m_baseUrlOverridden = true;
     log("INFO", "服务器地址设置为：" + this->baseUrl());
 }
 
@@ -452,7 +504,7 @@ QString SrunClient::baseUrl() const {
 }
 
 bool SrunClient::isBaseUrlOverridden() const {
-    return !m_baseUrl.isEmpty();
+    return m_baseUrlOverridden;
 }
 
 void SrunClient::doPeriodicPoll() {
@@ -481,29 +533,45 @@ void SrunClient::doPeriodicPoll() {
 void SrunClient::onPeriodicPollFinished(QNetworkReply *reply) {
     const QByteArray data = reply->readAll();
     const auto netErr = reply->error();
+    const QString netErrStr = reply->errorString();
     reply->deleteLater();
 
     if (m_busy) return;
 
+    const auto noteFailure = [this](const QString &reason) {
+        ++m_periodicFailureCount;
+        log("WARN", QString("在线轮询失败(%1/%2): %3")
+                .arg(m_periodicFailureCount)
+                .arg(kPeriodicFailureThreshold)
+                .arg(reason));
+        // 单次 Wi-Fi 抖动不要立刻把界面判成离线；连续失败才认为掉线
+        if (m_periodicFailureCount >= kPeriodicFailureThreshold)
+            emit onlineStatusRefreshed(false, {});
+    };
+
     if (netErr != QNetworkReply::NoError) {
-        emit onlineStatusRefreshed(false, {});
+        noteFailure(netErrStr);
         return;
     }
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (!ok) {
-        emit onlineStatusRefreshed(false, {});
+        noteFailure("响应解析失败");
         return;
     }
 
     const QString err = obj.value("error").toString();
     if (err == "ok") {
+        m_periodicFailureCount = 0;
+        updateIpFromOnlineInfo(obj);
         emit onlineStatusRefreshed(true, obj);
     } else if (err == "not_online_error") {
+        m_periodicFailureCount = 0;
         emit onlineStatusRefreshed(false, {});
+    } else {
+        noteFailure("服务器返回：" + (err.isEmpty() ? QStringLiteral("未知错误") : err));
     }
-    // 其他错误：静默丢弃，等下一轮
 }
 
 // ============================================================
@@ -552,7 +620,7 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← challenge 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data)));
+    log("HTTP", "← challenge 响应: " + previewForLog(data));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -569,14 +637,25 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
         return;
     }
 
-    const QString clientIp = obj.value("client_ip").toString();
-    if (!m_ipResolved && !clientIp.isEmpty() && clientIp != m_ip) {
-        log("INFO", QString("本地 IP=%1，服务器看到 IP=%2，以服务器为准并重新获取 token")
-                .arg(m_ip.isEmpty() ? "(空)" : m_ip, clientIp));
-        m_ip = clientIp;
-        m_ipResolved = true;
-        requestChallenge();
-        return;
+    // 服务器视角的 IP 和本地不一致时，用服务器为准，重新请求一次 challenge。
+    // 有的部署把 IP 放在 online_ip 里，两个字段都尝试。
+    QString clientIp = obj.value("client_ip").toString();
+    if (clientIp.isEmpty()) clientIp = obj.value("online_ip").toString();
+
+    if (!m_ipResolved) {
+        if (clientIp.isEmpty()) {
+            log("ERROR", "challenge 响应里没有服务器分配的 IP");
+            emitLoginFailed("未获取到服务器分配的 IP，请检查网络后重试", obj);
+            return;
+        }
+        if (clientIp != m_ip) {
+            log("INFO", QString("本地 IP=%1，服务器看到 IP=%2，以服务器为准并重新获取 token")
+                    .arg(m_ip.isEmpty() ? "(空)" : m_ip, clientIp));
+            m_ip = clientIp;
+            m_ipResolved = true;
+            requestChallenge();
+            return;
+        }
     }
 
     m_token = token;
@@ -654,7 +733,7 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← auth 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
+    log("HTTP", "← auth 响应: " + previewForLog(data, 300));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -743,7 +822,7 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
         return;
     }
 
-    log("HTTP", "← logout 响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 300)));
+    log("HTTP", "← logout 响应: " + previewForLog(data, 300));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
@@ -826,19 +905,20 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
         if (m_pollCheckCount < m_pollMaxChecks) {
             QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
         } else {
-            m_pollCallback(false, {});
+            finishPoll(false, {});
         }
         return;
     }
 
-    log("HTTP", "← 在线信息响应: " + maskIfNeeded(SrunHttpUtils::previewBody(data, 200)));
+    log("HTTP", "← 在线信息响应: " + previewForLog(data, 200));
 
     bool ok = false;
     const QJsonObject obj = SrunHttpUtils::parseJsonOrJsonp(data, &ok);
     if (ok) {
         const QString err = obj.value("error").toString();
         if (err == m_pollSuccessError) {
-            m_pollCallback(true, obj);
+            updateIpFromOnlineInfo(obj);
+            finishPoll(true, obj);
             return;
         }
     }
@@ -846,6 +926,6 @@ void SrunClient::onPollStepFinished(QNetworkReply *reply) {
     if (m_pollCheckCount < m_pollMaxChecks) {
         QTimer::singleShot(kVerifyPollIntervalMs, this, [this] { doPollStep(); });
     } else {
-        m_pollCallback(false, obj);
+        finishPoll(false, obj);
     }
 }
