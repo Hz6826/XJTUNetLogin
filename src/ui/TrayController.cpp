@@ -163,7 +163,7 @@ void TrayController::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
         if (m_window->isVisible()) {
             m_window->hide();
         } else {
-            m_window->show();
+            m_window->showNormal();
             m_window->raise();
             m_window->activateWindow();
         }
@@ -171,7 +171,7 @@ void TrayController::onTrayActivated(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void TrayController::onShowWindow() {
-    m_window->show();
+    m_window->showNormal();
     m_window->raise();
     m_window->activateWindow();
 }
