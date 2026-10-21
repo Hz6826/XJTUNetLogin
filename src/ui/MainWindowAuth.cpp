@@ -134,7 +134,7 @@ void MainWindow::onLoginFailed(const QString &msg, const QJsonObject &) {
             }
         }
         appendLog("ERROR", "自动登录失败：" + msg);
-        if (m_autoLoginFailedTrials <= kMaxAutoLoginFailNotifyCount)
+        if (m_autoLoginFailedTrials < kMaxAutoLoginFailNotifyCount)
             emit loginFailedNotify(msg);
     } else {
         emit loginFailedNotify(msg);
