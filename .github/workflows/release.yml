@@ -3,12 +3,13 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'          # 收窄触发器：必须以 v + 数字开头，其它 tag 直接不触发
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（手动触发时使用，如 1.0.0）'
+        description: '版本号（不带 v 前缀，如 1.0.0 或 1.0.0-rc.1）'
         required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,18 +36,46 @@ jobs:
           tools: ${{ env.MINGW_TOOL }}  # ★ 装 Qt 自带的 MinGW
           cache: true
 
-      # ---------- 确定版本号 ----------
-      - name: Resolve version
+      # ---------- 版本号：归一化 + 严格校验（失败即停）----------
+      - name: Resolve & validate version
         id: ver
         shell: pwsh
         run: |
+          # 1) 取原始版本号
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $v = "${{ github.event.inputs.version }}"
+            $raw = "${{ github.event.inputs.version }}".Trim()
           } else {
-            $v = "${{ github.ref_name }}" -replace '^v',''
+            $raw = "${{ github.ref_name }}".Trim()
           }
-          "version=$v" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $v"
+
+          # 2) 统一剥掉前缀 v（大小写兼容）
+          $normalized = $raw -replace '^[vV]', ''
+
+          # 3) semver.org 官方正则严格校验
+          $semverPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$'
+          $m = [regex]::Match($normalized, $semverPattern)
+          if (-not $m.Success) {
+            Write-Host "::error::版本号不合法：原始='$raw'，归一化后='$normalized'"
+            Write-Host "::error::期望格式：MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]，如 1.0.0、1.2.3-rc.1"
+            exit 1
+          }
+
+          # 4) 严格按 semver 判断：仅 -PRERELEASE 段存在才算预发布
+          #    Groups[4] 即 -PRERELEASE 段（不含前导 '-'），Groups[5] 是 +BUILD
+          $prerelease   = $m.Groups[4].Value
+          $isPrerelease = -not [string]::IsNullOrEmpty($prerelease)
+
+          # 5) Inno Setup 用纯数字版本（AppVersion 不接受 -PRERELEASE）
+          $numeric = "$($m.Groups[1].Value).$($m.Groups[2].Value).$($m.Groups[3].Value)"
+
+          "version=$normalized"                     >> $env:GITHUB_OUTPUT
+          "version_numeric=$numeric"                >> $env:GITHUB_OUTPUT
+          "is_prerelease=$($isPrerelease.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Raw:           $raw"
+          Write-Host "Normalized:    $normalized"
+          Write-Host "Numeric:       $numeric"
+          Write-Host "Is prerelease: $isPrerelease"
 
       # ---------- 定位 Qt MinGW ----------
       - name: Locate Qt MinGW
@@ -169,5 +198,5 @@ jobs:
         with:
           files: dist/*
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ steps.ver.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
