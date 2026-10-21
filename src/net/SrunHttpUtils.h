@@ -14,8 +14,12 @@
 
 namespace SrunHttpUtils {
 
-    // 解析 JSON 或 JSONP（形如 cb({...})）
+    // 解析 JSON 或 JSONP（形如 cb({...})）。只接受 JSON 对象。
     QJsonObject parseJsonOrJsonp(const QByteArray &data, bool *ok);
+
+    // 从服务器错误响应体里提取可读错误（error_msg / ploy_msg / error）。
+    // 不是 JSON/JSONP 或没有错误字段时返回空串。
+    QString extractServerError(const QByteArray &data);
 
     // 统一 User-Agent
     QString getUAHeader();
