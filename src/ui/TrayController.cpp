@@ -81,7 +81,7 @@ void TrayController::createTray() {
 }
 
 void TrayController::createMenu() {
-    m_menu = new QMenu;
+    m_menu = new QMenu(m_window);
 
     m_showAction = m_menu->addAction("显示主窗口");
     connect(m_showAction, &QAction::triggered,
