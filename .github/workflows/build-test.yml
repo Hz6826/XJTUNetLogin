@@ -1,0 +1,58 @@
+name: Build Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:      # 允许你手动在 Actions 页面点击运行
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      QT_VERSION: '6.8.3'
+      MINGW_TOOL: 'tools_mingw1310'
+      BUILD_TYPE: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.4.0
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: 'win64_mingw'
+          tools: ${{ env.MINGW_TOOL }}
+          cache: true
+
+      - name: Locate Qt MinGW
+        id: mingw
+        shell: pwsh
+        run: |
+          $mingwRoot = "$env:QT_ROOT_DIR\..\..\Tools"
+          $mingwDir = Get-ChildItem $mingwRoot -Directory -Filter 'mingw*_64' `
+                      -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $mingwDir) {
+            Write-Host "::error::Qt MinGW not found under $mingwRoot"
+            Get-ChildItem $mingwRoot -ErrorAction SilentlyContinue | Format-Table
+            exit 1
+          }
+          $mingwBin = "$($mingwDir.FullName)\bin"
+          Write-Host "Using MinGW: $mingwBin"
+          & "$mingwBin\g++.exe" --version | Select-Object -First 1
+          "bin=$mingwBin" >> $env:GITHUB_OUTPUT
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -B build -S . `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_C_COMPILER="${{ steps.mingw.outputs.bin }}\gcc.exe" `
+            -DCMAKE_CXX_COMPILER="${{ steps.mingw.outputs.bin }}\g++.exe" `
+            -DXJTU_VERSION="1.0.0-test"
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}

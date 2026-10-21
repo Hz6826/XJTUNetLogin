@@ -1,0 +1,62 @@
+# .github/release.yml
+# GitHub 原生 Release Notes 配置，仅在 workflow 使用 generate_release_notes: true 时生效
+# 文档: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+#
+# 规则：
+#   1. 只统计「合并进默认分支（main）」的 PR
+#   2. 一个 PR 只会归入「自上而下第一个匹配」的分类
+#   3. "*" 必须放最后作为兜底
+#   4. What's Changed / New Contributors / Full Changelog 三个标题由 GitHub 写死，无法翻译
+
+changelog:
+  # ---------- 完全不出现在 release notes 里的 PR ----------
+  exclude:
+    labels:
+      - skip-changelog
+      - ignore-for-release
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - github-actions[bot]
+
+  # ---------- 分类（按顺序匹配，命中即停） ----------
+  categories:
+    - title: 🚀 新功能
+      labels:
+        - feature
+        - enhancement
+        - feat
+
+    - title: 🐛 Bug 修复
+      labels:
+        - bug
+        - fix
+        - bugfix
+
+    - title: ⚡ 性能优化
+      labels:
+        - performance
+        - perf
+
+    - title: 🎨 UI / 体验改进
+      labels:
+        - ui
+        - ux
+        - style
+
+    - title: 🔧 构建 / CI / 依赖
+      labels:
+        - build
+        - ci
+        - chore
+        - dependencies
+
+    - title: 📖 文档
+      labels:
+        - documentation
+        - docs
+
+    - title: 📦 其他变更
+      labels:
+        - "*"
