@@ -21,6 +21,9 @@
 #define MyAppURL        "https://github.com/Hz6826/XJTUNetLogin"
 #define MyAppExeName    "XJTUNetLogin.exe"
 
+; 已确认：QStandardPaths::AppDataLocation = %APPDATA%\Hz6826\XJTUNetLogin
+#define AppDataSubDir   "Hz6826\XJTUNetLogin"
+
 [Setup]
 ; 固定 GUID，升级时才会覆盖安装而不是并存
 AppId={{0DC6B9F5-EC59-DFB9-7416-6F7A5EA2AB18}
@@ -60,7 +63,6 @@ Name: "english";          MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; build/bin 整个目录（exe + Qt DLL + 资源）
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
@@ -73,15 +75,43 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 [UninstallDelete]
 ; 不删用户配置 —— 卸载重装时配置还在 %APPDATA%
+; 配置删除交给 [Code] 里带确认框的逻辑
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir, CfgFile, LogDir: String;
 begin
-  if CurUninstallStep = usUninstall then
+  if CurUninstallStep <> usUninstall then
+    Exit;
+
+  // ---- 1) 静默清理启动项（程序写入 HKCU\Run，升级不会到这里） ----
+  RegDeleteValue(HKCU,
+    'Software\Microsoft\Windows\CurrentVersion\Run',
+    'XJTUNetLogin');
+  RegDeleteValue(HKCU,
+    'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run',
+    'XJTUNetLogin');
+
+  // ---- 2) 询问是否删除配置与日志 ----
+  DataDir := ExpandConstant('{userappdata}\{#AppDataSubDir}');
+  CfgFile := DataDir + '\config.json';
+  LogDir  := DataDir + '\logs';
+
+  if (not FileExists(CfgFile)) and (not DirExists(LogDir)) then
+    Exit;
+
+  // MB_DEFBUTTON2 → "否"为默认按钮，防手滑
+  if MsgBox(
+       '是否同时删除应用数据与日志？' + #13#10#13#10 +
+       '  ' + CfgFile + #13#10 +
+       '  ' + LogDir  + #13#10#13#10 +
+       '选择"否"将保留这些文件，不影响卸载。' + #13#10 +
+       '（若程序仍在运行，日志文件可能被占用而无法删除，请先退出程序再卸载。）',
+       mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
   begin
-    { 启动项由程序写入当前用户的 Run。升级不会走到这里。
-      同时删掉 StartupApproved，避免重装后沿用任务管理器里的禁用标记。 }
-    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'XJTUNetLogin');
-    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run', 'XJTUNetLogin');
+    DeleteFile(CfgFile);
+    DelTree(LogDir, True, True, True);   // 含子目录 / 删只读 / 静默失败
+    RemoveDir(DataDir);                  // 目录空了顺手删掉，删不掉也无所谓
   end;
 end;
