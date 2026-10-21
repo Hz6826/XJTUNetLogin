@@ -132,8 +132,7 @@ private:
     bool m_autoLoginMissingCredsNoted = false;
 
     QNetworkAccessManager *m_versionNam = nullptr;
-    bool m_hasNewVersion = false;
-    QString m_latestVersionUrl;
+    bool m_versionCheckInFlight = false;
 
     // 图标
     QIcon m_iconChevronDown;

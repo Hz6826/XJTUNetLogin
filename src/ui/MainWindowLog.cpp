@@ -25,6 +25,7 @@
 void MainWindow::onToggleLogClicked() {
     m_config.logExpanded = !m_config.logExpanded;
     applyLogExpanded(m_config.logExpanded);
+    saveConfigSilently(); // 立即持久化展开/收起状态，避免托盘退出时未保存
 }
 
 void MainWindow::onClearLogClicked() {
@@ -57,7 +58,10 @@ void MainWindow::logWelcome() {
 }
 
 void MainWindow::appendLog(const QString &level, const QString &msg) {
-    const QString safe = SrunHttpUtils::redactSecrets(msg);
+    // logSensitive 为真表示用户明确关闭了脱敏，此时保留原文；否则统一打码
+    const QString safe = m_config.logSensitive
+                             ? msg
+                             : SrunHttpUtils::redactSecrets(msg);
     writeLogToFile(level, safe);
 
     if (m_config.filterHttpLog && level == "HTTP") {
@@ -93,8 +97,8 @@ void MainWindow::writeLogToFile(const QString &level, const QString &msg) {
 
     const QString ts = QDateTime::currentDateTime()
                            .toString("yyyy-MM-dd HH:mm:ss.zzz");
-    const QString safe = SrunHttpUtils::redactSecrets(msg);
-    const QString line = QString("[%1] [%2] %3\n").arg(ts, level, safe);
+    // 脱敏已由 appendLog 统一处理，这里不再重复
+    const QString line = QString("[%1] [%2] %3\n").arg(ts, level, msg);
     m_logFile.write(line.toUtf8());
     m_logFile.flush();
 }

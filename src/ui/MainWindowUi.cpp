@@ -14,6 +14,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QFile>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -21,6 +22,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTabWidget>
@@ -420,15 +422,35 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     auto *qtNoticeLabel = new QLabel(QString(
     "Powered by Qt %1 · LGPLv3 · <a href=\"openLicenses\">开源许可</a>")
     .arg(QT_VERSION_STR));
+    qtNoticeLabel->setTextFormat(Qt::RichText);
     qtNoticeLabel->setOpenExternalLinks(false);
-    connect(qtNoticeLabel, &QLabel::linkActivated, this, [](const QString &) {
-        const QString p = QCoreApplication::applicationDirPath() + "/LICENSES";
-        QDesktopServices::openUrl(QUrl::fromLocalFile(p + "/NOTICE.txt"));
-    });
-    qtNoticeLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto openLicenses = [qtNoticeLabel] {
+        const QString local = QCoreApplication::applicationDirPath()
+                              + "/LICENSES/NOTICE.txt";
+        if (QFile::exists(local)
+            && QDesktopServices::openUrl(QUrl::fromLocalFile(local)))
+            return;
+
+        // 开发构建（以及没有随包携带 LICENSES 的部署）没有本地文件，
+        // 回退到仓库里的许可证目录，避免“点了没反应”。
+        const QString online = QStringLiteral("%1/tree/main/packaging/LICENSES")
+                                   .arg(AppInfo::RepoUrl);
+        if (QDesktopServices::openUrl(QUrl(online)))
+            return;
+
+        QMessageBox::information(qtNoticeLabel, QStringLiteral("开源许可"),
+            QStringLiteral("未找到本地许可证文件，请访问：\n%1").arg(online));
+    };
+    connect(qtNoticeLabel, &QLabel::linkActivated, this,
+            [openLicenses](const QString &) { openLicenses(); });
+    // 只设 TextSelectableByMouse 会覆盖 QLabel 默认的链接交互，导致“开源许可”点不动；
+    // 同时保留文本可选中和链接可点击。
+    qtNoticeLabel->setTextInteractionFlags(
+        Qt::TextSelectableByMouse | Qt::LinksAccessibleByMouse);
     qtNoticeLabel->setToolTip(QString(
         "Qt %1 (LGPLv3)\nhttps://www.qt.io/licensing").arg(QT_VERSION_STR));
-    qtNoticeLabel->installEventFilter(this);
+    // 不给这个 QLabel 装自定义 eventFilter：自定义 tooltip 会拦截悬停/点击首击，
+    // 用原生 tooltip 即可，避免影响链接激活。
     detailTextCol->addWidget(qtNoticeLabel);
 
     detailRow->addLayout(detailTextCol, 1);
