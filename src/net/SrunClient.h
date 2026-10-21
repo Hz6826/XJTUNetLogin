@@ -118,6 +118,11 @@ private:
     void emitLogoutSucceeded(const QJsonObject &info);
     void emitLogoutFailed(const QString &msg, const QJsonObject &raw);
 
+    // 取走当前 poll 回调并清空，避免回调内重入时旧闭包被覆盖
+    void finishPoll(bool success, const QJsonObject &obj);
+    // 在线信息里回写本机 IP（仅当本地还没有时）
+    void updateIpFromOnlineInfo(const QJsonObject &obj);
+
     QString maskIfNeeded(const QString &text) const;
 
     // ---------- 状态 ----------
@@ -155,6 +160,8 @@ private:
     // 周期轮询单飞保护
     bool m_periodicPollInFlight = false;
     QPointer<QNetworkReply> m_periodicReply;
+    // 连续失败计数：网络抖动/解析失败时不立刻把 UI 判成离线
+    int m_periodicFailureCount = 0;
 
     bool m_logSensitive = false;
 
@@ -163,8 +170,10 @@ private:
     static constexpr int kLoginWatchdogMs    = 60000;  // 登录整体看门狗
     static constexpr int kLogoutWatchdogMs   = 30000;  // 注销整体看门狗
     static constexpr int kVerifyPollIntervalMs = 1000; // 登录/注销后确认在线间隔
+    static constexpr int kPeriodicFailureThreshold = 3; // 连续失败几次才判离线
 
     QString m_baseUrl;
+    bool m_baseUrlOverridden = false;   // 用户显式覆盖时，302 探测不得改写
 };
 
 #endif // SRUNCLIENT_H
