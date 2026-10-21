@@ -271,8 +271,11 @@ void SrunClient::onQueryOnlineFinished(QNetworkReply *reply, bool silent) {
 
     if (netErr != QNetworkReply::NoError) {
         if (!silent) {
-            log("ERROR", "查询在线 网络错误: " + netErrStr);
-            emit onlineQueryFailed("网络错误: " + netErrStr);
+            // HTTP 4xx/5xx 时 Qt 直接报网络错误，但门户的错误体里通常有 error_msg
+            const QString serverMsg = SrunHttpUtils::extractServerError(data);
+            const QString detail = serverMsg.isEmpty() ? netErrStr : serverMsg;
+            log("ERROR", "查询在线 网络错误: " + detail);
+            emit onlineQueryFailed("网络错误: " + detail);
         }
         return;
     }
@@ -542,8 +545,10 @@ void SrunClient::onChallengeFinished(QNetworkReply *reply) {
     if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
-        log("ERROR", "challenge 网络错误: " + netErrStr);
-        emitLoginFailed("网络错误: " + netErrStr, {});
+        const QString serverMsg = SrunHttpUtils::extractServerError(data);
+        const QString detail = serverMsg.isEmpty() ? netErrStr : serverMsg;
+        log("ERROR", "challenge 网络错误: " + detail);
+        emitLoginFailed("网络错误: " + detail, {});
         return;
     }
 
@@ -642,8 +647,10 @@ void SrunClient::onAuthFinished(QNetworkReply *reply) {
     if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
-        log("ERROR", "auth 网络错误: " + netErrStr);
-        emitLoginFailed("网络错误: " + netErrStr, {});
+        const QString serverMsg = SrunHttpUtils::extractServerError(data);
+        const QString detail = serverMsg.isEmpty() ? netErrStr : serverMsg;
+        log("ERROR", "auth 网络错误: " + detail);
+        emitLoginFailed("网络错误: " + detail, {});
         return;
     }
 
@@ -729,8 +736,10 @@ void SrunClient::onLogoutFinished(QNetworkReply *reply) {
     if (m_cancelled) return;
 
     if (netErr != QNetworkReply::NoError) {
-        log("ERROR", "logout 网络错误: " + netErrStr);
-        emitLogoutFailed("网络错误: " + netErrStr, {});
+        const QString serverMsg = SrunHttpUtils::extractServerError(data);
+        const QString detail = serverMsg.isEmpty() ? netErrStr : serverMsg;
+        log("ERROR", "logout 网络错误: " + detail);
+        emitLogoutFailed("网络错误: " + detail, {});
         return;
     }
 

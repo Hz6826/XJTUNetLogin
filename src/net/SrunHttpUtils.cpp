@@ -12,22 +12,42 @@
 namespace SrunHttpUtils {
 
 QJsonObject parseJsonOrJsonp(const QByteArray &data, bool *ok) {
+    if (!ok) return {};
+
+    QByteArray payload = data;
+    if (payload.startsWith("\xEF\xBB\xBF")) {
+        payload.remove(0, 3);
+    }
+    payload = payload.trimmed();
+    if (payload.isEmpty()) {
+        *ok = false;
+        return {};
+    }
+
+    // 1) 普通 JSON：只接受对象。null/数组/字符串都视为失败，
+    //    否则调用方会把空对象当成“请求成功但字段缺失”，错误信息全丢。
     QJsonParseError err;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
+    const QJsonDocument doc = QJsonDocument::fromJson(payload, &err);
     if (err.error == QJsonParseError::NoError) {
+        if (!doc.isObject()) {
+            *ok = false;
+            return {};
+        }
         *ok = true;
         return doc.object();
     }
 
-    const QString text = QString::fromUtf8(data);
+    // 2) JSONP：整串必须是 callback({...})[;]，避免贪婪匹配到错误页里的括号。
+    const QString text = QString::fromUtf8(payload);
     static const QRegularExpression re(
-        R"(\((.*)\))", QRegularExpression::DotMatchesEverythingOption);
+        R"(^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\(\s*(\{.*\})\s*\)\s*;?\s*$)",
+        QRegularExpression::DotMatchesEverythingOption);
     const QRegularExpressionMatch match = re.match(text);
     if (match.hasMatch()) {
         const QString inner = match.captured(1);
         QJsonParseError err2;
         const QJsonDocument doc2 = QJsonDocument::fromJson(inner.toUtf8(), &err2);
-        if (err2.error == QJsonParseError::NoError) {
+        if (err2.error == QJsonParseError::NoError && doc2.isObject()) {
             *ok = true;
             return doc2.object();
         }
@@ -35,6 +55,22 @@ QJsonObject parseJsonOrJsonp(const QByteArray &data, bool *ok) {
 
     *ok = false;
     return {};
+}
+
+QString extractServerError(const QByteArray &data) {
+    bool ok = false;
+    const QJsonObject obj = parseJsonOrJsonp(data, &ok);
+    if (!ok) return {};
+
+    QString msg = obj.value("error_msg").toString().trimmed();
+    if (msg.isEmpty()) msg = obj.value("ploy_msg").toString().trimmed();
+    if (msg.isEmpty()) msg = obj.value("msg").toString().trimmed();
+    if (msg.isEmpty()) {
+        const QString err = obj.value("error").toString();
+        if (!err.isEmpty() && err != "ok" && err != "not_online_error")
+            msg = err;
+    }
+    return msg;
 }
 
 QString getUAHeader() {
