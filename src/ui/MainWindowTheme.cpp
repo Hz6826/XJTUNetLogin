@@ -23,6 +23,23 @@
 #include <QStringList>
 #include <QUrl>
 
+#ifdef Q_OS_WIN
+#  include <windows.h>
+#  include <dwmapi.h>
+#  ifndef DWMWA_BORDER_COLOR
+#    define DWMWA_BORDER_COLOR 34
+#  endif
+#  ifndef DWMWA_CAPTION_COLOR
+#    define DWMWA_CAPTION_COLOR 35
+#  endif
+#  ifndef DWMWA_TEXT_COLOR
+#    define DWMWA_TEXT_COLOR 36
+#  endif
+#  ifndef DWMWA_COLOR_DEFAULT
+#    define DWMWA_COLOR_DEFAULT 0xFFFFFFFF
+#  endif
+#endif
+
 namespace {
 
     // 主题 ID 就是 themes 下的文件夹名；"default" 表示系统原生样式。
@@ -35,11 +52,36 @@ namespace {
         QString author;    // 作者
         QString updatedAt; // 更新时间
         QString link;      // 链接
-        // 图标线条颜色：可以是单个颜色字符串，也可以是 {light, dark} 对象
+        // 以下颜色既可以是单个颜色字符串，也可以是 {light, dark} 对象
         QColor iconColor;
         QColor iconColorLight;
         QColor iconColorDark;
+        QColor titleBarColor;
+        QColor titleBarColorLight;
+        QColor titleBarColorDark;
+        QColor borderColor;
+        QColor borderColorLight;
+        QColor borderColorDark;
     };
+
+    void readSchemeColor(const QJsonObject &obj, const QString &key,
+                         QColor *single, QColor *light, QColor *dark) {
+        const QJsonValue value = obj.value(key);
+        if (value.isObject()) {
+            const QJsonObject colors = value.toObject();
+            *light = QColor(colors.value(QStringLiteral("light")).toString());
+            *dark = QColor(colors.value(QStringLiteral("dark")).toString());
+        } else {
+            *single = QColor(value.toString());
+        }
+    }
+
+    QColor pickSchemeColor(const QColor &single, const QColor &light,
+                           const QColor &dark) {
+        if (Theme::colorScheme() == Qt::ColorScheme::Dark)
+            return dark.isValid() ? dark : single;
+        return light.isValid() ? light : single;
+    }
 
     ThemeManifest readManifest(const QString &themeDir) {
         ThemeManifest manifest;
@@ -56,16 +98,15 @@ namespace {
         manifest.updatedAt = obj.value(QStringLiteral("updatedAt")).toString();
         manifest.link      = obj.value(QStringLiteral("link")).toString();
 
-        const QJsonValue iconColor = obj.value(QStringLiteral("iconColor"));
-        if (iconColor.isObject()) {
-            const QJsonObject colors = iconColor.toObject();
-            manifest.iconColorLight =
-                QColor(colors.value(QStringLiteral("light")).toString());
-            manifest.iconColorDark =
-                QColor(colors.value(QStringLiteral("dark")).toString());
-        } else {
-            manifest.iconColor = QColor(iconColor.toString());
-        }
+        readSchemeColor(obj, QStringLiteral("iconColor"),
+                        &manifest.iconColor, &manifest.iconColorLight,
+                        &manifest.iconColorDark);
+        readSchemeColor(obj, QStringLiteral("titleBarColor"),
+                        &manifest.titleBarColor, &manifest.titleBarColorLight,
+                        &manifest.titleBarColorDark);
+        readSchemeColor(obj, QStringLiteral("borderColor"),
+                        &manifest.borderColor, &manifest.borderColorLight,
+                        &manifest.borderColorDark);
         return manifest;
     }
 
@@ -158,11 +199,59 @@ QColor MainWindow::themeIconColor() const {
 
     const ThemeManifest manifest =
         readManifest(themesDirPath() + QLatin1Char('/') + m_config.themeId);
-    if (Theme::colorScheme() == Qt::ColorScheme::Dark)
-        return manifest.iconColorDark.isValid() ? manifest.iconColorDark
-                                                : manifest.iconColor;
-    return manifest.iconColorLight.isValid() ? manifest.iconColorLight
-                                             : manifest.iconColor;
+    return pickSchemeColor(manifest.iconColor, manifest.iconColorLight,
+                           manifest.iconColorDark);
+}
+
+QColor MainWindow::themeTitleBarColor() const {
+    if (m_config.themeId.isEmpty() || m_config.themeId == kDefaultThemeId)
+        return QColor();
+
+    const ThemeManifest manifest =
+        readManifest(themesDirPath() + QLatin1Char('/') + m_config.themeId);
+    return pickSchemeColor(manifest.titleBarColor, manifest.titleBarColorLight,
+                           manifest.titleBarColorDark);
+}
+
+QColor MainWindow::themeBorderColor() const {
+    if (m_config.themeId.isEmpty() || m_config.themeId == kDefaultThemeId)
+        return QColor();
+
+    const ThemeManifest manifest =
+        readManifest(themesDirPath() + QLatin1Char('/') + m_config.themeId);
+    return pickSchemeColor(manifest.borderColor, manifest.borderColorLight,
+                           manifest.borderColorDark);
+}
+
+void MainWindow::applyWindowChromeColors() {
+#ifdef Q_OS_WIN
+    const auto toColorRef = [](const QColor &color) {
+        return color.isValid()
+                   ? RGB(color.red(), color.green(), color.blue())
+                   : static_cast<COLORREF>(DWMWA_COLOR_DEFAULT);
+    };
+
+    const QColor captionColor = themeTitleBarColor();
+
+    // 自定义标题栏/边框颜色需要 Windows 11；旧系统调用失败，保持系统外观
+    const HWND hwnd = reinterpret_cast<HWND>(winId());
+    const COLORREF caption = toColorRef(captionColor);
+    if (FAILED(DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &caption,
+                                     sizeof(caption)))) {
+        return;
+    }
+
+    // 文字色跟随底色亮度，避免深底黑字
+    const COLORREF text =
+        toColorRef(captionColor.isValid()
+                       ? (captionColor.lightness() < 128 ? QColor(Qt::white)
+                                                         : QColor(Qt::black))
+                       : QColor());
+    DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &text, sizeof(text));
+
+    const COLORREF border = toColorRef(themeBorderColor());
+    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &border, sizeof(border));
+#endif
 }
 
 void MainWindow::refreshTheme() {
@@ -226,6 +315,7 @@ void MainWindow::applyTheme(const QString &themeId) {
     if (themeId.isEmpty() || themeId == kDefaultThemeId) {
         qApp->setStyleSheet(QString());
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
+        applyWindowChromeColors();
         appendLog("INFO", QString("当前主题：默认（%1）").arg(m_defaultStyleName));
         return;
     }
@@ -237,6 +327,7 @@ void MainWindow::applyTheme(const QString &themeId) {
         // 主题目录被删/改名：清掉旧的 QSS，避免残留上一次的样式
         qApp->setStyleSheet(QString());
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
+        applyWindowChromeColors();
         appendLog("WARN",
                   QString("无法读取主题 %1 的 styles.qss，已恢复默认样式")
                       .arg(themeId));
@@ -253,6 +344,7 @@ void MainWindow::applyTheme(const QString &themeId) {
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
     }
 
+    applyWindowChromeColors();
     appendLog("INFO", QString("当前主题：%1（%2）")
                          .arg(themeId, colorSchemeName()));
 }

@@ -376,7 +376,7 @@ void MainWindow::buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout) {
     themeLabel->setToolTip(QString(
         "主题目录：%1\n"
         "每个子文件夹是一套主题：styles.qss（或按明暗拆分的 styles-light.qss / styles-dark.qss）\n"
-        "可选文件：manifest.json（名称/版本/作者/更新时间/链接/iconColor）、log_textedit.qss")
+        "可选文件：manifest.json（名称/版本/作者/更新时间/链接/iconColor/titleBarColor/borderColor）、log_textedit.qss")
         .arg(QDir::toNativeSeparators(themesDirPath())));
     themeLabel->installEventFilter(this);
 

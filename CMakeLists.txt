@@ -146,6 +146,8 @@ target_link_libraries(XJTUNetLogin PRIVATE
         Qt6::Widgets
         Qt6::Network
         Qt6::Svg
+        # 自定义标题栏颜色（DWM）
+        $<$<PLATFORM_ID:Windows>:dwmapi>
 )
 
 # ---------- Windows 开发时拷贝 Qt 运行时 DLL ----------

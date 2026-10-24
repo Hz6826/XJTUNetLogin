@@ -124,6 +124,9 @@ private:
     // ---------- 主题配置（MainWindowTheme.cpp）----------
     static QString themesDirPath();
     [[nodiscard]] QColor themeIconColor() const;
+    [[nodiscard]] QColor themeTitleBarColor() const;
+    [[nodiscard]] QColor themeBorderColor() const;
+    void applyWindowChromeColors();
     void refreshTheme();
     void updateThemeList();
     void applyTheme(const QString &themeId);

@@ -139,6 +139,9 @@ void MainWindow::changeEvent(QEvent *event) {
 void MainWindow::showEvent(QShowEvent *event) {
     QMainWindow::showEvent(event);
 
+    // 构造里 applyTheme() 早于 setWindowFlags()，窗口句柄会被重建，标题栏颜色要重设
+    applyWindowChromeColors();
+
     if (m_firstShowDone) return;
     m_firstShowDone = true;
 
