@@ -1,0 +1,60 @@
+/* 蓝调 - 浅色 */
+QWidget {
+    background-color: #f5f7fa;
+    color: #202733;
+}
+
+QLineEdit, QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #b9c6d6;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #202733;
+}
+
+QPushButton {
+    background-color: #e3ebf5;
+    border: 1px solid #b9c6d6;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #202733;
+}
+
+QPushButton:hover {
+    background-color: #d3e0f0;
+}
+
+QCheckBox {
+    color: #202733;
+}
+
+QGroupBox {
+    border: 1px solid #b9c6d6;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 6px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+    color: #2f6fb3;
+}
+
+QTabWidget::pane {
+    border: 1px solid #b9c6d6;
+}
+
+QTabBar::tab {
+    background: #e9eef5;
+    color: #35404f;
+    border: 1px solid #b9c6d6;
+    border-bottom: none;
+    padding: 4px 10px;
+}
+
+QTabBar::tab:selected {
+    background: #ffffff;
+    color: #1a4f8a;
+}

@@ -1,0 +1,9 @@
+/* 蓝调 - 浅色日志区 */
+QPlainTextEdit {
+    background-color: #ffffff;
+    color: #202733;
+    border: 1px solid #b9c6d6;
+    border-radius: 4px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}

@@ -1,4 +1,4 @@
-/* 暗夜蓝：示例主题，演示 styles.qss 的写法 */
+/* 蓝调 - 深色 */
 QWidget {
     background-color: #1e2430;
     color: #d4d4d4;
