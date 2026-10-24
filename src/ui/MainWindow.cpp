@@ -249,17 +249,12 @@ void MainWindow::updateUiForState() {
     m_saveBtn->setEnabled(editable2);
     m_autoLoginCheck->setEnabled(editable2);
 
-    QPalette pal = m_authBtn->palette();
-    if (m_onlineState == OnlineState::Online) {
-        m_authBtn->setText("注销");
-        pal.setColor(QPalette::ButtonText, QColor(0xF4, 0x47, 0x47));
-        pal.setColor(QPalette::Text,       QColor(0xF4, 0x47, 0x47));
-    } else {
-        m_authBtn->setText("登录");
-        pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6));
-        pal.setColor(QPalette::Text,       QColor(0x56, 0x9C, 0xD6));
-    }
-    m_authBtn->setPalette(pal);
+    // 角色色用控件级 QSS：主题的 QPushButton color 优先级高于调色板，会盖掉 palette
+    const bool online = m_onlineState == OnlineState::Online;
+    m_authBtn->setText(online ? "注销" : "登录");
+    m_authBtn->setStyleSheet(QStringLiteral("QPushButton { color: %1; }")
+                                 .arg(online ? QStringLiteral("#f44747")
+                                             : QStringLiteral("#569cd6")));
 }
 
 void MainWindow::connectSignals() {
