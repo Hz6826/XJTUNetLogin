@@ -38,8 +38,9 @@ void MainWindow::onAuthClicked() {
     }
 }
 
-void MainWindow::onPingClicked() {
+void MainWindow::onPingAndRefreshClicked() {
     m_client->checkInternet();
+    m_client->applyPollingIntervalAndRestart();
 }
 
 void MainWindow::onSaveConfigClicked() {

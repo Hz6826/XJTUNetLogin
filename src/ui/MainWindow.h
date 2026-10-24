@@ -42,7 +42,7 @@ public slots:
 
 private slots:
     void onToggleLogClicked();
-    void onPingClicked();
+    void onPingAndRefreshClicked();
     void onSaveConfigClicked();
     void onClearLogClicked();
     void onOpenLogDirClicked();
@@ -150,7 +150,7 @@ private:
     QCheckBox *m_autoLoginCheck = nullptr;
 
     QPushButton *m_authBtn = nullptr;
-    QPushButton *m_pingBtn = nullptr;
+    QPushButton *m_pingAndRefreshBtn = nullptr;
     QPushButton *m_saveBtn = nullptr;
 
     QLabel *m_statusLabel = nullptr;
