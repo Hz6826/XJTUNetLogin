@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QColor>
 #include <QFile>
 #include <QMainWindow>
 #include <QLabel>
@@ -65,6 +66,7 @@ private slots:
 private:
     // ---------- UI 构建（MainWindowUi.cpp） ----------
     void loadIcons();
+    void refreshUiIcons();
     void buildUi();
     void buildUiAuthForm(QVBoxLayout *mainLayout);
     void buildUiAutoLogin(QVBoxLayout *uiSettingsLayout);
@@ -121,6 +123,7 @@ private:
 
     // ---------- 主题配置（MainWindowTheme.cpp）----------
     static QString themesDirPath();
+    [[nodiscard]] QColor themeIconColor() const;
     void refreshTheme();
     void updateThemeList();
     void applyTheme(const QString &themeId);

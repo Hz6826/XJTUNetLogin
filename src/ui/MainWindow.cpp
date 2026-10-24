@@ -11,10 +11,12 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QGuiApplication>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStyle>
+#include <QStyleHints>
 #include <QSystemTrayIcon>
 #include <QTabWidget>
 #include <QTimer>
@@ -128,15 +130,7 @@ void MainWindow::changeEvent(QEvent *event) {
         const bool nowDark = Theme::isDark();
         if (nowDark != m_lastDarkTheme) {
             m_lastDarkTheme = nowDark;
-            loadIcons();
-            if (m_toggleLogBtn)
-                m_toggleLogBtn->setIcon(m_config.logExpanded ? m_iconChevronUp : m_iconChevronDown);
-            if (m_clearLogBtn)
-                m_clearLogBtn->setIcon(m_iconTrash);
-            if (m_openLogDirBtn)
-                m_openLogDirBtn->setIcon(m_iconFolder);
-            if (m_themeDirOpenBtn)
-                m_themeDirOpenBtn->setIcon(m_iconFolder);
+            refreshUiIcons();
         }
     }
     QMainWindow::changeEvent(event);
@@ -305,9 +299,16 @@ void MainWindow::connectSignals() {
     connect(m_themeListRefreshBtn, &QPushButton::clicked, this, [this] {
         updateThemeList();
         applyTheme(m_config.themeId);
+        refreshUiIcons();
     });
     connect(m_themeDirOpenBtn, &QToolButton::clicked,
         this, &MainWindow::openThemesDir);
+    // 系统明暗切换：主题的 styles-light/dark.qss 和图标线条颜色要跟着变
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+        this, [this](Qt::ColorScheme) {
+            applyTheme(m_config.themeId);
+            refreshUiIcons();
+        });
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);

@@ -29,18 +29,79 @@
 #include <QTabWidget>
 #include <QToolButton>
 #include <QIntValidator>
+#include <QRegularExpression>
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QScrollArea>
 
 #include "net/SrunClient.h"
 
+namespace {
+
+    // 把 Feather 单色 SVG 的线条颜色替换成 color，再渲染成多尺寸 QIcon。
+    // 主题通过 manifest.json 的 iconColor 指定线条颜色。
+    QIcon tintedSvgIcon(const QString &path, const QColor &color) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return QIcon(path);
+
+        static const QRegularExpression strokeRe(
+            QStringLiteral(R"(stroke\s*=\s*["']#[0-9A-Fa-f]{3,8}["'])"));
+        QString svg = QString::fromUtf8(file.readAll());
+        svg.replace(strokeRe,
+                    QStringLiteral("stroke=\"%1\"").arg(color.name(QColor::HexRgb)));
+
+        QSvgRenderer renderer(svg.toUtf8());
+        if (!renderer.isValid())
+            return QIcon(path);
+
+        QIcon icon;
+        for (const int size : {16, 20, 24, 32, 48}) {
+            for (const qreal dpr : {1.0, 2.0}) {
+                const int px = qRound(size * dpr);
+                QPixmap pix(px, px);
+                pix.fill(Qt::transparent);
+                QPainter p(&pix);
+                p.setRenderHint(QPainter::Antialiasing);
+                renderer.render(&p, QRectF(0, 0, px, px));
+                p.end();
+                pix.setDevicePixelRatio(dpr);
+                icon.addPixmap(pix);
+            }
+        }
+        return icon;
+    }
+
+} // namespace
+
 void MainWindow::loadIcons() {
     const QString dir = Theme::isDark() ? ":/icons/dark" : ":/icons/light";
-    m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
-    m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
-    m_iconTrash       = QIcon(dir + "/trash-2.svg");
-    m_iconFolder      = QIcon(dir + "/folder.svg");
+    const QColor iconColor = themeIconColor();
+
+    if (iconColor.isValid()) {
+        m_iconChevronDown = tintedSvgIcon(dir + "/chevron-down.svg", iconColor);
+        m_iconChevronUp   = tintedSvgIcon(dir + "/chevron-up.svg", iconColor);
+        m_iconTrash       = tintedSvgIcon(dir + "/trash-2.svg", iconColor);
+        m_iconFolder      = tintedSvgIcon(dir + "/folder.svg", iconColor);
+    } else {
+        m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
+        m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
+        m_iconTrash       = QIcon(dir + "/trash-2.svg");
+        m_iconFolder      = QIcon(dir + "/folder.svg");
+    }
+}
+
+void MainWindow::refreshUiIcons() {
+    loadIcons();
+
+    if (m_toggleLogBtn)
+        m_toggleLogBtn->setIcon(m_config.logExpanded ? m_iconChevronUp : m_iconChevronDown);
+    if (m_clearLogBtn)
+        m_clearLogBtn->setIcon(m_iconTrash);
+    if (m_openLogDirBtn)
+        m_openLogDirBtn->setIcon(m_iconFolder);
+    if (m_themeDirOpenBtn)
+        m_themeDirOpenBtn->setIcon(m_iconFolder);
 }
 
 void MainWindow::buildUi() {
@@ -312,7 +373,10 @@ void MainWindow::buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout) {
     auto *themeLayout = new QHBoxLayout;
 
     auto *themeLabel = new QLabel("主题");
-    themeLabel->setToolTip(QString("主题目录：%1\n每个子文件夹是一套主题，需包含 styles.qss")
+    themeLabel->setToolTip(QString(
+        "主题目录：%1\n"
+        "每个子文件夹是一套主题：styles.qss（或按明暗拆分的 styles-light.qss / styles-dark.qss）\n"
+        "可选文件：manifest.json（名称/版本/作者/更新时间/链接/iconColor）、log_textedit.qss")
         .arg(QDir::toNativeSeparators(themesDirPath())));
     themeLabel->installEventFilter(this);
 

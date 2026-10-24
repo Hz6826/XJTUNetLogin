@@ -1,12 +1,16 @@
 //
 // Created by Hz6826 on 2026/10/24.
 // MainWindow 的主题切换：扫描 <AppData>/themes 下的主题文件夹，
-// 应用其中的 styles.qss，并把选择持久化到 Config::themeId。
+// 应用其中的 styles.qss（或按明暗分开的 styles-light/dark.qss），
+// 并把选择持久化到 Config::themeId。
 //
 
 #include "MainWindow.h"
 
+#include "ThemeUtils.h"
+
 #include <QApplication>
+#include <QColor>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
@@ -31,6 +35,10 @@ namespace {
         QString author;    // 作者
         QString updatedAt; // 更新时间
         QString link;      // 链接
+        // 图标线条颜色：可以是单个颜色字符串，也可以是 {light, dark} 对象
+        QColor iconColor;
+        QColor iconColorLight;
+        QColor iconColorDark;
     };
 
     ThemeManifest readManifest(const QString &themeDir) {
@@ -47,6 +55,17 @@ namespace {
         manifest.author    = obj.value(QStringLiteral("author")).toString();
         manifest.updatedAt = obj.value(QStringLiteral("updatedAt")).toString();
         manifest.link      = obj.value(QStringLiteral("link")).toString();
+
+        const QJsonValue iconColor = obj.value(QStringLiteral("iconColor"));
+        if (iconColor.isObject()) {
+            const QJsonObject colors = iconColor.toObject();
+            manifest.iconColorLight =
+                QColor(colors.value(QStringLiteral("light")).toString());
+            manifest.iconColorDark =
+                QColor(colors.value(QStringLiteral("dark")).toString());
+        } else {
+            manifest.iconColor = QColor(iconColor.toString());
+        }
         return manifest;
     }
 
@@ -91,10 +110,59 @@ namespace {
         return result;
     }
 
+    QString colorSchemeName() {
+        return Theme::colorScheme() == Qt::ColorScheme::Dark
+                   ? QStringLiteral("dark")
+                   : QStringLiteral("light");
+    }
+
+    // 读取主题样式（已改写 url）：优先当前明暗变体，其次通用文件，最后另一套变体。
+    bool readThemeStyle(const QString &themeDir, const QString &baseName,
+                        QString *qss) {
+        const QString scheme = colorSchemeName();
+        const QString other =
+            scheme == QLatin1String("dark") ? QStringLiteral("light")
+                                            : QStringLiteral("dark");
+        const QStringList candidates = {
+            baseName + QLatin1Char('-') + scheme + QStringLiteral(".qss"),
+            baseName + QStringLiteral(".qss"),
+            baseName + QLatin1Char('-') + other + QStringLiteral(".qss"),
+        };
+
+        for (const QString &name : candidates) {
+            QFile file(themeDir + QLatin1Char('/') + name);
+            if (file.open(QIODevice::ReadOnly)) {
+                *qss = resolveStyleSheetUrls(
+                    QString::fromUtf8(file.readAll()), themeDir);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool themeHasStyleSheet(const QString &themeDir) {
+        return QFile::exists(themeDir + QStringLiteral("/styles.qss"))
+            || QFile::exists(themeDir + QStringLiteral("/styles-light.qss"))
+            || QFile::exists(themeDir + QStringLiteral("/styles-dark.qss"));
+    }
+
 } // namespace
 
 QString MainWindow::themesDirPath() {
     return Config::appDataDir() + QStringLiteral("/themes");
+}
+
+QColor MainWindow::themeIconColor() const {
+    if (m_config.themeId.isEmpty() || m_config.themeId == kDefaultThemeId)
+        return QColor();
+
+    const ThemeManifest manifest =
+        readManifest(themesDirPath() + QLatin1Char('/') + m_config.themeId);
+    if (Theme::colorScheme() == Qt::ColorScheme::Dark)
+        return manifest.iconColorDark.isValid() ? manifest.iconColorDark
+                                                : manifest.iconColor;
+    return manifest.iconColorLight.isValid() ? manifest.iconColorLight
+                                             : manifest.iconColor;
 }
 
 void MainWindow::refreshTheme() {
@@ -104,6 +172,7 @@ void MainWindow::refreshTheme() {
     m_config.themeId = m_themeCombo->currentData().toString();
     saveConfigSilently();
     applyTheme(m_config.themeId);
+    refreshUiIcons();
 }
 
 void MainWindow::updateThemeList() {
@@ -125,12 +194,11 @@ void MainWindow::updateThemeList() {
     m_themeCombo->setItemData(
         0, QStringLiteral("不使用自定义主题，切换回系统原生样式"), Qt::ToolTipRole);
 
-    // 每个包含 styles.qss 的子文件夹是一套主题
+    // 每个包含 styles.qss（或 styles-light/dark.qss）的子文件夹是一套主题
     const QFileInfoList entries = themesDir.entryInfoList(
         QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
     for (const QFileInfo &entry : entries) {
-        if (!QFile::exists(entry.absoluteFilePath()
-                           + QStringLiteral("/styles.qss")))
+        if (!themeHasStyleSheet(entry.absoluteFilePath()))
             continue;
 
         const ThemeManifest manifest = readManifest(entry.absoluteFilePath());
@@ -163,8 +231,9 @@ void MainWindow::applyTheme(const QString &themeId) {
     }
 
     const QString themeDir = themesDirPath() + QLatin1Char('/') + themeId;
-    QFile styleFile(themeDir + QStringLiteral("/styles.qss"));
-    if (!styleFile.open(QIODevice::ReadOnly)) {
+
+    QString qss;
+    if (!readThemeStyle(themeDir, QStringLiteral("styles"), &qss)) {
         // 主题目录被删/改名：清掉旧的 QSS，避免残留上一次的样式
         qApp->setStyleSheet(QString());
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
@@ -173,21 +242,19 @@ void MainWindow::applyTheme(const QString &themeId) {
                       .arg(themeId));
         return;
     }
-
-    qApp->setStyleSheet(resolveStyleSheetUrls(
-        QString::fromUtf8(styleFile.readAll()), themeDir));
+    qApp->setStyleSheet(qss);
 
     // 日志区的内联样式优先级高于全局 QSS，主题可选地用 log_textedit.qss 单独覆盖；
     // 没有这个文件就沿用内置的默认配色。
-    QFile logStyleFile(themeDir + QStringLiteral("/log_textedit.qss"));
-    if (logStyleFile.open(QIODevice::ReadOnly)) {
-        m_logTextEdit->setStyleSheet(resolveStyleSheetUrls(
-            QString::fromUtf8(logStyleFile.readAll()), themeDir));
+    QString logQss;
+    if (readThemeStyle(themeDir, QStringLiteral("log_textedit"), &logQss)) {
+        m_logTextEdit->setStyleSheet(logQss);
     } else {
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
     }
 
-    appendLog("INFO", QString("当前主题：%1").arg(themeId));
+    appendLog("INFO", QString("当前主题：%1（%2）")
+                         .arg(themeId, colorSchemeName()));
 }
 
 // ReSharper disable once CppMemberFunctionMayBeStatic
