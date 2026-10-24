@@ -6,5 +6,6 @@
   "link": "https://github.com/Hz6826/XJTUNetLogin",
   "iconColor": { "light": "#007a4d", "dark": "#00ff9c" },
   "titleBarColor": { "light": "#e3f7ec", "dark": "#07120d" },
-  "borderColor": { "light": "#a8e0c6", "dark": "#124d33" }
+  "borderColor": { "light": "#a8e0c6", "dark": "#124d33" },
+  "linkColor": { "light": "#007a4d", "dark": "#00ff9c" }
 }

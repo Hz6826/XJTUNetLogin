@@ -126,7 +126,10 @@ private:
     [[nodiscard]] QColor themeIconColor() const;
     [[nodiscard]] QColor themeTitleBarColor() const;
     [[nodiscard]] QColor themeBorderColor() const;
+    [[nodiscard]] QColor themeLinkColor() const;
+    [[nodiscard]] QString linkColoredHtml(const QString &html) const;
     void applyWindowChromeColors();
+    void applyLinkColor();
     void refreshTheme();
     void updateThemeList();
     void applyTheme(const QString &themeId);
@@ -203,6 +206,10 @@ private:
 
     QLabel *m_fullIconLabel = nullptr;
     QLabel *m_versionCheckLabel = nullptr;
+    QLabel *m_qtNoticeLabel = nullptr;
+    QLabel *m_linksLabel = nullptr;
+    QString m_qtNoticeHtml; // 链接标签的原始 HTML（换主题时重新染色）
+    QString m_linksHtml;
 
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;

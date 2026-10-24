@@ -40,20 +40,23 @@ themes/<主题ID>/
   "link": "https://github.com/Hz6826/XJTUNetLogin",
   "iconColor": { "light": "#2f6fb3", "dark": "#9ecbff" },
   "titleBarColor": { "light": "#e3ebf5", "dark": "#1e2430" },
-  "borderColor": { "light": "#b9c6d6", "dark": "#3a4a63" }
+  "borderColor": { "light": "#b9c6d6", "dark": "#3a4a63" },
+  "linkColor": { "light": "#1a5fa8", "dark": "#7ec8ff" }
 }
 ```
 
-| 字段                                          | 说明                                 |
-|---------------------------------------------|------------------------------------|
-| `name`                                      | 设置页下拉框里的显示名；缺省时用文件夹名               |
-| `version` / `author` / `updatedAt` / `link` | 悬停提示中展示的元信息，都可以省略                  |
-| `iconColor`                                 | 界面线框图标（折叠箭头、清空、打开目录）的线条颜色          |
-| `titleBarColor`                             | Windows 11 原生标题栏背景色，文字颜色按底色亮度自动黑/白 |
-| `borderColor`                               | Windows 11 原生窗口边框色                 |
+| 字段                                          | 说明                                  |
+|---------------------------------------------|-------------------------------------|
+| `name`                                      | 设置页下拉框里的显示名；缺省时用文件夹名                |
+| `version` / `author` / `updatedAt` / `link` | 悬停提示中展示的元信息，都可以省略                   |
+| `iconColor`                                 | 界面线框图标（折叠箭头、清空、打开目录）的线条颜色           |
+| `titleBarColor`                             | Windows 11 原生标题栏背景色，文字颜色按底色亮度自动黑/白  |
+| `borderColor`                               | Windows 11 原生窗口边框色                  |
+| `linkColor`                                 | “关于”页里富文本链接的颜色（QSS 的 `color` 管不到链接） |
 
-- 三个颜色字段都支持**单个颜色字符串**或 **`{ "light": ..., "dark": ... }` 按明暗分开**；没写或值无效时保持系统默认。
+- 四个颜色字段都支持**单个颜色字符串**或 **`{ "light": ..., "dark": ... }` 按明暗分开**；没写或值无效时保持系统默认。
 - 标题栏/边框配色依赖 DWM，仅 Windows 11 支持；Windows 10 及更早版本会静默忽略，不影响其它样式。
+- 富文本链接（“关于”页的版本检查、开源许可、仓库/作者链接）的颜色由 HTML 里的 `<a>` 标签决定，QSS 的 `color` 和 `QPalette::Link` 都管不到；主题用 `linkColor` 指定，程序会写进 `<a style="color:...">`。不写时链接沿用系统默认蓝色，深色主题下可能看不清。
 
 ## styles.qss 写法
 

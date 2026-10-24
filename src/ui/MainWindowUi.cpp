@@ -508,9 +508,11 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     m_versionCheckLabel->installEventFilter(this);
     detailTextCol->addWidget(m_versionCheckLabel);
 
-    auto *qtNoticeLabel = new QLabel(QString(
+    m_qtNoticeHtml = QString(
     "Powered by Qt %1 · LGPLv3 · <a href=\"openLicenses\">开源许可</a>")
-    .arg(QT_VERSION_STR));
+    .arg(QT_VERSION_STR);
+    m_qtNoticeLabel = new QLabel(m_qtNoticeHtml);
+    auto *qtNoticeLabel = m_qtNoticeLabel;
     qtNoticeLabel->setTextFormat(Qt::RichText);
     qtNoticeLabel->setOpenExternalLinks(false);
     auto openLicenses = [qtNoticeLabel] {
@@ -552,14 +554,16 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
 
     uiAboutLayout->addLayout(detailRow);
 
-    auto *linksLabel = new QLabel;
-    linksLabel->setText(QStringLiteral(
+    m_linksHtml = QStringLiteral(
         "<a href=\"%1\">GitHub 仓库</a>"
         " &nbsp;|&nbsp; "
         "<a href=\"%1/issues\">反馈问题</a>"
         " &nbsp;|&nbsp; "
         "<a href=\"%2\">作者主页</a>")
-        .arg(AppInfo::RepoUrl, AppInfo::AuthorUrl));
+        .arg(AppInfo::RepoUrl, AppInfo::AuthorUrl);
+    m_linksLabel = new QLabel;
+    auto *linksLabel = m_linksLabel;
+    linksLabel->setText(m_linksHtml);
     linksLabel->setOpenExternalLinks(true);
     linksLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     linksLabel->setAlignment(Qt::AlignCenter);

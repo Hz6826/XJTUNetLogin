@@ -103,8 +103,8 @@ void MainWindow::onVersionCheckFinished(QNetworkReply *reply) {
         appendLog("SUCCESS", "发现新版本: " + tag);
 
         m_versionCheckLabel->setTextFormat(Qt::RichText);
-        m_versionCheckLabel->setText(QStringLiteral(
-            "<a href=\"%1\">发现新版本 %2，点击前往下载</a>").arg(url, tag));
+        m_versionCheckLabel->setText(linkColoredHtml(QStringLiteral(
+            "<a href=\"%1\">发现新版本 %2，点击前往下载</a>").arg(url, tag)));
         m_versionCheckLabel->setOpenExternalLinks(true);
         m_versionCheckLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
         m_versionCheckLabel->setCursor(Qt::PointingHandCursor);

@@ -62,6 +62,9 @@ namespace {
         QColor borderColor;
         QColor borderColorLight;
         QColor borderColorDark;
+        QColor linkColor;
+        QColor linkColorLight;
+        QColor linkColorDark;
     };
 
     void readSchemeColor(const QJsonObject &obj, const QString &key,
@@ -107,6 +110,9 @@ namespace {
         readSchemeColor(obj, QStringLiteral("borderColor"),
                         &manifest.borderColor, &manifest.borderColorLight,
                         &manifest.borderColorDark);
+        readSchemeColor(obj, QStringLiteral("linkColor"),
+                        &manifest.linkColor, &manifest.linkColorLight,
+                        &manifest.linkColorDark);
         return manifest;
     }
 
@@ -223,6 +229,50 @@ QColor MainWindow::themeBorderColor() const {
                            manifest.borderColorDark);
 }
 
+QColor MainWindow::themeLinkColor() const {
+    if (m_config.themeId.isEmpty() || m_config.themeId == kDefaultThemeId)
+        return QColor();
+
+    const ThemeManifest manifest =
+        readManifest(themesDirPath() + QLatin1Char('/') + m_config.themeId);
+    return pickSchemeColor(manifest.linkColor, manifest.linkColorLight,
+                           manifest.linkColorDark);
+}
+
+QString MainWindow::linkColoredHtml(const QString &html) const {
+    const QColor linkColor = themeLinkColor();
+    if (!linkColor.isValid() || html.isEmpty())
+        return html;
+
+    // QLabel 的富文本链接颜色来自 HTML/CSS，QPalette::Link 对 QLabel 不生效，只能写进 <a> 里
+    static const QRegularExpression anchorRe(QStringLiteral("<a\\b"));
+    QString result = html;
+    result.replace(anchorRe,
+                   QStringLiteral("<a style=\"color:%1;\" ").arg(linkColor.name()));
+    return result;
+}
+
+void MainWindow::applyLinkColor() {
+    // 富文本链接的颜色来自 HTML，QSS 的 color 和 QPalette::Link 都管不到
+    const auto restyle = [this](QLabel *label, const QString &html) {
+        if (label && !html.isEmpty())
+            label->setText(linkColoredHtml(html));
+    };
+    restyle(m_qtNoticeLabel, m_qtNoticeHtml);
+    restyle(m_linksLabel, m_linksHtml);
+
+    // 版本检查标签的内容是动态的，直接给当前的链接文本重新染色
+    if (m_versionCheckLabel) {
+        static const QRegularExpression colorStyleRe(
+            QStringLiteral("\\sstyle=\"color:[^\"]*\""));
+        QString html = m_versionCheckLabel->text();
+        if (html.contains(QLatin1String("<a "))) {
+            html.remove(colorStyleRe); // 去掉上一次注入的颜色
+            m_versionCheckLabel->setText(linkColoredHtml(html));
+        }
+    }
+}
+
 void MainWindow::applyWindowChromeColors() {
 #ifdef Q_OS_WIN
     const auto toColorRef = [](const QColor &color) {
@@ -316,6 +366,7 @@ void MainWindow::applyTheme(const QString &themeId) {
         qApp->setStyleSheet(QString());
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
         applyWindowChromeColors();
+        applyLinkColor();
         appendLog("INFO", QString("当前主题：默认（%1）").arg(m_defaultStyleName));
         return;
     }
@@ -328,6 +379,7 @@ void MainWindow::applyTheme(const QString &themeId) {
         qApp->setStyleSheet(QString());
         m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
         applyWindowChromeColors();
+        applyLinkColor();
         appendLog("WARN",
                   QString("无法读取主题 %1 的 styles.qss，已恢复默认样式")
                       .arg(themeId));
@@ -345,6 +397,7 @@ void MainWindow::applyTheme(const QString &themeId) {
     }
 
     applyWindowChromeColors();
+    applyLinkColor();
     appendLog("INFO", QString("当前主题：%1（%2）")
                          .arg(themeId, colorSchemeName()));
 }
