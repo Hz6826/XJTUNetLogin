@@ -59,6 +59,7 @@ qt_add_executable(XJTUNetLogin
         src/net/SrunHttpUtils.cpp
         src/ui/MainWindowVersion.cpp
         src/util/SingleInstance.cpp
+        src/ui/MainWindowTheme.cpp
 )
 
 set_target_properties(XJTUNetLogin PROPERTIES
@@ -145,6 +146,8 @@ target_link_libraries(XJTUNetLogin PRIVATE
         Qt6::Widgets
         Qt6::Network
         Qt6::Svg
+        # 自定义标题栏颜色（DWM）
+        $<$<PLATFORM_ID:Windows>:dwmapi>
 )
 
 # ---------- Windows 开发时拷贝 Qt 运行时 DLL ----------

@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QColor>
 #include <QFile>
 #include <QMainWindow>
 #include <QLabel>
@@ -65,10 +66,13 @@ private slots:
 private:
     // ---------- UI 构建（MainWindowUi.cpp） ----------
     void loadIcons();
+    void refreshUiIcons();
     void buildUi();
     void buildUiAuthForm(QVBoxLayout *mainLayout);
     void buildUiAutoLogin(QVBoxLayout *uiSettingsLayout);
     void buildUiPollingSetting(QVBoxLayout *uiSettingsLayout);
+
+    void buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout);
 
     void buildUiMiscSetting(QVBoxLayout *uiSettingsLayout);
 
@@ -96,6 +100,7 @@ private:
     void writeLogToFile(const QString &level, const QString &msg);
     void ensureLogFileForToday();
     static QString logDirPath();
+    static QString defaultLogStyleSheet();
 
     // ---------- 认证/自动登录（MainWindowAuth.cpp） ----------
     void connectSignals();
@@ -115,6 +120,20 @@ private:
     void onVersionCheckFinished(QNetworkReply *reply);
     void updateLogSensitiveUi() const;
     void toggleLogSensitive();
+
+    // ---------- 主题配置（MainWindowTheme.cpp）----------
+    static QString themesDirPath();
+    [[nodiscard]] QColor themeIconColor() const;
+    [[nodiscard]] QColor themeTitleBarColor() const;
+    [[nodiscard]] QColor themeBorderColor() const;
+    [[nodiscard]] QColor themeLinkColor() const;
+    [[nodiscard]] QString linkColoredHtml(const QString &html) const;
+    void applyWindowChromeColors();
+    void applyLinkColor();
+    void refreshTheme();
+    void updateThemeList();
+    void applyTheme(const QString &themeId);
+    void openThemesDir();
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -176,12 +195,21 @@ private:
     QLineEdit *m_pollTimerIntervalEdit = nullptr;
     QPushButton *m_pollTimerApplyBtn = nullptr;
 
+    QComboBox *m_themeCombo = nullptr;
+    QPushButton *m_themeListRefreshBtn = nullptr;
+    QToolButton *m_themeDirOpenBtn = nullptr;
+    QString m_defaultStyleName; // Qt 原生样式名，default 主题即恢复它
+
     QComboBox *m_defaultCloseActionCombo = nullptr;
     QLineEdit *m_baseUrlOverrideEdit = nullptr;
     QPushButton *m_baseUrlOverrideSaveBtn = nullptr;
 
     QLabel *m_fullIconLabel = nullptr;
     QLabel *m_versionCheckLabel = nullptr;
+    QLabel *m_qtNoticeLabel = nullptr;
+    QLabel *m_linksLabel = nullptr;
+    QString m_qtNoticeHtml; // 链接标签的原始 HTML（换主题时重新染色）
+    QString m_linksHtml;
 
     static constexpr int kAuthFormHeight     = 120;
     static constexpr int kOpBtnRowHeight     = 45;

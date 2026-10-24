@@ -1,0 +1,11 @@
+{
+  "name": "蓝调",
+  "version": "1.0.0",
+  "author": "Hz6826",
+  "updatedAt": "2026-10-24",
+  "link": "https://github.com/Hz6826/XJTUNetLogin",
+  "iconColor": { "light": "#2f6fb3", "dark": "#9ecbff" },
+  "titleBarColor": { "light": "#e3ebf5", "dark": "#1e2430" },
+  "borderColor": { "light": "#b9c6d6", "dark": "#3a4a63" },
+  "linkColor": { "light": "#1a5fa8", "dark": "#7ec8ff" }
+}

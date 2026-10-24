@@ -1,0 +1,11 @@
+{
+  "name": "赛博",
+  "version": "1.0.0",
+  "author": "Hz6826",
+  "updatedAt": "2026-10-24",
+  "link": "https://github.com/Hz6826/XJTUNetLogin",
+  "iconColor": { "light": "#d1006f", "dark": "#ff2d95" },
+  "titleBarColor": { "light": "#f6e3f2", "dark": "#140d1f" },
+  "borderColor": { "light": "#e6b8d4", "dark": "#3b1e5c" },
+  "linkColor": { "light": "#d1006f", "dark": "#ff2d95" }
+}

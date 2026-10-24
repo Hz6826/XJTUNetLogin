@@ -9,10 +9,14 @@
 #include "ThemeUtils.h"
 #include "net/SrunClient.h"
 
+#include <QApplication>
 #include <QCheckBox>
+#include <QGuiApplication>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStyle>
+#include <QStyleHints>
 #include <QSystemTrayIcon>
 #include <QTabWidget>
 #include <QTimer>
@@ -29,6 +33,9 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     m_config = Config::load();
     m_client->setLogSensitive(m_config.logSensitive);
 
+    // 记录原生样式名（default 主题恢复它），需在任何 QSS 生效前取
+    m_defaultStyleName = QApplication::style()->name();
+
     loadIcons();
     m_lastDarkTheme = Theme::isDark();
     buildUi();
@@ -41,6 +48,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     connectSignals();
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
+    applyTheme(m_config.themeId);
     m_client->checkInternet();
     m_versionNam = new QNetworkAccessManager(this);
     checkVersion();
@@ -122,13 +130,7 @@ void MainWindow::changeEvent(QEvent *event) {
         const bool nowDark = Theme::isDark();
         if (nowDark != m_lastDarkTheme) {
             m_lastDarkTheme = nowDark;
-            loadIcons();
-            if (m_toggleLogBtn)
-                m_toggleLogBtn->setIcon(m_config.logExpanded ? m_iconChevronUp : m_iconChevronDown);
-            if (m_clearLogBtn)
-                m_clearLogBtn->setIcon(m_iconTrash);
-            if (m_openLogDirBtn)
-                m_openLogDirBtn->setIcon(m_iconFolder);
+            refreshUiIcons();
         }
     }
     QMainWindow::changeEvent(event);
@@ -136,6 +138,9 @@ void MainWindow::changeEvent(QEvent *event) {
 
 void MainWindow::showEvent(QShowEvent *event) {
     QMainWindow::showEvent(event);
+
+    // 构造里 applyTheme() 早于 setWindowFlags()，窗口句柄会被重建，标题栏颜色要重设
+    applyWindowChromeColors();
 
     if (m_firstShowDone) return;
     m_firstShowDone = true;
@@ -247,17 +252,12 @@ void MainWindow::updateUiForState() {
     m_saveBtn->setEnabled(editable2);
     m_autoLoginCheck->setEnabled(editable2);
 
-    QPalette pal = m_authBtn->palette();
-    if (m_onlineState == OnlineState::Online) {
-        m_authBtn->setText("注销");
-        pal.setColor(QPalette::ButtonText, QColor(0xF4, 0x47, 0x47));
-        pal.setColor(QPalette::Text,       QColor(0xF4, 0x47, 0x47));
-    } else {
-        m_authBtn->setText("登录");
-        pal.setColor(QPalette::ButtonText, QColor(0x56, 0x9C, 0xD6));
-        pal.setColor(QPalette::Text,       QColor(0x56, 0x9C, 0xD6));
-    }
-    m_authBtn->setPalette(pal);
+    // 角色色用控件级 QSS：主题的 QPushButton color 优先级高于调色板，会盖掉 palette
+    const bool online = m_onlineState == OnlineState::Online;
+    m_authBtn->setText(online ? "注销" : "登录");
+    m_authBtn->setStyleSheet(QStringLiteral("QPushButton { color: %1; }")
+                                 .arg(online ? QStringLiteral("#f44747")
+                                             : QStringLiteral("#569cd6")));
 }
 
 void MainWindow::connectSignals() {
@@ -291,6 +291,22 @@ void MainWindow::connectSignals() {
             this, &MainWindow::saveConfigSilently);
     connect(m_baseUrlOverrideSaveBtn, &QPushButton::clicked,
         this, &MainWindow::onBaseUrlOverrideSaveBtnClicked);
+    connect(m_themeCombo, QOverload<int>::of(&QComboBox::activated),
+        this, &MainWindow::refreshTheme);
+    // 刷新后重新应用当前主题：既能看到新放进来的主题，也能立即预览改过的 styles.qss
+    connect(m_themeListRefreshBtn, &QPushButton::clicked, this, [this] {
+        updateThemeList();
+        applyTheme(m_config.themeId);
+        refreshUiIcons();
+    });
+    connect(m_themeDirOpenBtn, &QToolButton::clicked,
+        this, &MainWindow::openThemesDir);
+    // 系统明暗切换：主题的 styles-light/dark.qss 和图标线条颜色要跟着变
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+        this, [this](Qt::ColorScheme) {
+            applyTheme(m_config.themeId);
+            refreshUiIcons();
+        });
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);

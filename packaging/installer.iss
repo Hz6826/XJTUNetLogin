@@ -66,6 +66,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; 主题保持外置，装到用户 AppData（与程序读取的 Config::appDataDir 一致），卸载时保留用户改动
+Source: "..\themes\*"; DestDir: "{userappdata}\{#AppDataSubDir}\themes"; Flags: ignoreversion recursesubdirs createallsubdirs uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#MyAppName}";                          Filename: "{app}\{#MyAppExeName}"

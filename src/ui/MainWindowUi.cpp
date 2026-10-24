@@ -14,6 +14,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDir>
 #include <QFile>
 #include <QFormLayout>
 #include <QGridLayout>
@@ -28,18 +29,79 @@
 #include <QTabWidget>
 #include <QToolButton>
 #include <QIntValidator>
+#include <QRegularExpression>
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QScrollArea>
 
 #include "net/SrunClient.h"
 
+namespace {
+
+    // 把 Feather 单色 SVG 的线条颜色替换成 color，再渲染成多尺寸 QIcon。
+    // 主题通过 manifest.json 的 iconColor 指定线条颜色。
+    QIcon tintedSvgIcon(const QString &path, const QColor &color) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return QIcon(path);
+
+        static const QRegularExpression strokeRe(
+            QStringLiteral(R"(stroke\s*=\s*["']#[0-9A-Fa-f]{3,8}["'])"));
+        QString svg = QString::fromUtf8(file.readAll());
+        svg.replace(strokeRe,
+                    QStringLiteral("stroke=\"%1\"").arg(color.name(QColor::HexRgb)));
+
+        QSvgRenderer renderer(svg.toUtf8());
+        if (!renderer.isValid())
+            return QIcon(path);
+
+        QIcon icon;
+        for (const int size : {16, 20, 24, 32, 48}) {
+            for (const qreal dpr : {1.0, 2.0}) {
+                const int px = qRound(size * dpr);
+                QPixmap pix(px, px);
+                pix.fill(Qt::transparent);
+                QPainter p(&pix);
+                p.setRenderHint(QPainter::Antialiasing);
+                renderer.render(&p, QRectF(0, 0, px, px));
+                p.end();
+                pix.setDevicePixelRatio(dpr);
+                icon.addPixmap(pix);
+            }
+        }
+        return icon;
+    }
+
+} // namespace
+
 void MainWindow::loadIcons() {
     const QString dir = Theme::isDark() ? ":/icons/dark" : ":/icons/light";
-    m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
-    m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
-    m_iconTrash       = QIcon(dir + "/trash-2.svg");
-    m_iconFolder      = QIcon(dir + "/folder.svg");
+    const QColor iconColor = themeIconColor();
+
+    if (iconColor.isValid()) {
+        m_iconChevronDown = tintedSvgIcon(dir + "/chevron-down.svg", iconColor);
+        m_iconChevronUp   = tintedSvgIcon(dir + "/chevron-up.svg", iconColor);
+        m_iconTrash       = tintedSvgIcon(dir + "/trash-2.svg", iconColor);
+        m_iconFolder      = tintedSvgIcon(dir + "/folder.svg", iconColor);
+    } else {
+        m_iconChevronDown = QIcon(dir + "/chevron-down.svg");
+        m_iconChevronUp   = QIcon(dir + "/chevron-up.svg");
+        m_iconTrash       = QIcon(dir + "/trash-2.svg");
+        m_iconFolder      = QIcon(dir + "/folder.svg");
+    }
+}
+
+void MainWindow::refreshUiIcons() {
+    loadIcons();
+
+    if (m_toggleLogBtn)
+        m_toggleLogBtn->setIcon(m_config.logExpanded ? m_iconChevronUp : m_iconChevronDown);
+    if (m_clearLogBtn)
+        m_clearLogBtn->setIcon(m_iconTrash);
+    if (m_openLogDirBtn)
+        m_openLogDirBtn->setIcon(m_iconFolder);
+    if (m_themeDirOpenBtn)
+        m_themeDirOpenBtn->setIcon(m_iconFolder);
 }
 
 void MainWindow::buildUi() {
@@ -187,15 +249,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
 
     m_logTextEdit = new QPlainTextEdit;
     m_logTextEdit->setReadOnly(true);
-    m_logTextEdit->setStyleSheet(
-        "QPlainTextEdit {"
-        "  background-color: #1E1E1E;"
-        "  color: #D4D4D4;"
-        "  border: 1px solid #3C3C3C;"
-        "  font-family: Consolas, 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "}"
-    );
+    m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
     m_logTextEdit->setMaximumBlockCount(1000);
     layout->addWidget(m_logTextEdit, 1);
 }
@@ -260,6 +314,7 @@ void MainWindow::buildUiSettingsPanel(QWidget *parent) {
 
     buildUiAutoLogin(uiSettingsLayout);
     buildUiPollingSetting(uiSettingsLayout);
+    buildUiAppearanceSetting(uiSettingsLayout);
     buildUiMiscSetting(uiSettingsLayout);
     uiSettingsLayout->addStretch();
 
@@ -310,6 +365,40 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
     pollingLayout->addWidget(m_pollTimerApplyBtn);
 
     uiSettingsLayout->addWidget(pollingGroup);
+}
+
+void MainWindow::buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout) {
+    auto *appearanceGroup = new QGroupBox("外观");
+    auto *appearanceLayout = new QVBoxLayout(appearanceGroup);
+    auto *themeLayout = new QHBoxLayout;
+
+    auto *themeLabel = new QLabel("主题");
+    themeLabel->setToolTip(QString(
+        "主题目录：%1\n"
+        "每个子文件夹是一套主题：styles.qss（或按明暗拆分的 styles-light.qss / styles-dark.qss）\n"
+        "可选文件：manifest.json（名称/版本/作者/更新时间/链接/iconColor/titleBarColor/borderColor）、log_textedit.qss")
+        .arg(QDir::toNativeSeparators(themesDirPath())));
+    themeLabel->installEventFilter(this);
+
+    m_themeCombo = new QComboBox;
+    updateThemeList();
+
+    m_themeListRefreshBtn = new QPushButton("刷新");
+    m_themeListRefreshBtn->setToolTip("重新扫描主题目录，并重新应用当前主题");
+
+    m_themeDirOpenBtn = new QToolButton;
+    m_themeDirOpenBtn->setAutoRaise(true);
+    m_themeDirOpenBtn->setToolTip("打开主题目录");
+    m_themeDirOpenBtn->setIcon(m_iconFolder);
+
+    themeLayout->addWidget(themeLabel);
+    themeLayout->addWidget(m_themeCombo, 1);
+    themeLayout->addWidget(m_themeListRefreshBtn);
+    themeLayout->addWidget(m_themeDirOpenBtn);
+
+    appearanceLayout->addLayout(themeLayout);
+
+    uiSettingsLayout->addWidget(appearanceGroup);
 }
 
 void MainWindow::buildUiMiscSetting(QVBoxLayout *uiSettingsLayout) {
@@ -419,9 +508,11 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
     m_versionCheckLabel->installEventFilter(this);
     detailTextCol->addWidget(m_versionCheckLabel);
 
-    auto *qtNoticeLabel = new QLabel(QString(
+    m_qtNoticeHtml = QString(
     "Powered by Qt %1 · LGPLv3 · <a href=\"openLicenses\">开源许可</a>")
-    .arg(QT_VERSION_STR));
+    .arg(QT_VERSION_STR);
+    m_qtNoticeLabel = new QLabel(m_qtNoticeHtml);
+    auto *qtNoticeLabel = m_qtNoticeLabel;
     qtNoticeLabel->setTextFormat(Qt::RichText);
     qtNoticeLabel->setOpenExternalLinks(false);
     auto openLicenses = [qtNoticeLabel] {
@@ -463,14 +554,16 @@ void MainWindow::buildUiAboutPanel(QWidget *parent) {
 
     uiAboutLayout->addLayout(detailRow);
 
-    auto *linksLabel = new QLabel;
-    linksLabel->setText(QStringLiteral(
+    m_linksHtml = QStringLiteral(
         "<a href=\"%1\">GitHub 仓库</a>"
         " &nbsp;|&nbsp; "
         "<a href=\"%1/issues\">反馈问题</a>"
         " &nbsp;|&nbsp; "
         "<a href=\"%2\">作者主页</a>")
-        .arg(AppInfo::RepoUrl, AppInfo::AuthorUrl));
+        .arg(AppInfo::RepoUrl, AppInfo::AuthorUrl);
+    m_linksLabel = new QLabel;
+    auto *linksLabel = m_linksLabel;
+    linksLabel->setText(m_linksHtml);
     linksLabel->setOpenExternalLinks(true);
     linksLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     linksLabel->setAlignment(Qt::AlignCenter);

@@ -150,6 +150,7 @@ Config Config::fromJson(const QJsonObject &root) {
     c.windowGeometry = QByteArray::fromBase64(
         uiCfg.value("windowGeometry").toString().toLatin1());
     c.expandedWindowHeight = uiCfg.value("expandedWindowHeight").toInt(-1);
+    c.themeId = uiCfg.value("themeId").toString("default");
 
     const QJsonObject debugCfg = root.value("debug").toObject();
 
@@ -179,6 +180,7 @@ QJsonObject Config::toJson() const {
     uiCfg["windowGeometry"] = QString::fromLatin1(
         windowGeometry.toBase64());
     uiCfg["expandedWindowHeight"] = expandedWindowHeight;
+    uiCfg["themeId"] = themeId;
 
     QJsonObject debugCfg;
     debugCfg["logSensitive"] = logSensitive;

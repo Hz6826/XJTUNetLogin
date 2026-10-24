@@ -56,8 +56,20 @@
 | 开机自启           | :white_check_mark: |
 | 自动登录           | :white_check_mark: |
 | 自动检查版本         | :white_check_mark: |
+| 自定义主题          | :white_check_mark: |
 | macOS/Linux 支持 | :memo:             |
 | Android 支持     | :memo:             |
+
+## 自定义主题
+
+设置 → 外观 → 主题 可以切换主题。主题放在主题目录下，一个子文件夹即一套主题；可以分别提供浅色/深色样式，跟随系统明暗自动切换，`default` 表示恢复系统原生样式。
+
+- 安装版主题目录：`%APPDATA%\Hz6826\XJTUNetLogin\themes`
+- 便携版主题目录：主程序同目录 `themes`
+- 内置示例：蓝调（`blue`）、樱花（`sakura`）、赛博（`cyber`）、矩阵（`matrix`），均带明暗两套
+- 便携版 zip 与安装包都会附带这些示例主题：便携版在 exe 同目录的 `themes/`，安装版装到上面的 AppData 目录
+
+主题结构、`manifest.json` 字段（主题名/作者/图标线条色/标题栏与边框配色等）以及 QSS 写法见 **[doc/themes.md](doc/themes.md)**。
 
 ## 画廊
 

@@ -22,6 +22,31 @@
 #include <QTextDocument>
 #include <QUrl>
 
+namespace {
+
+    // 日志等级配色：深色底 / 浅色底各一套
+    QColor logLevelColor(const QString &level, bool lightBg) {
+        static const struct LevelColor {
+            const char *level;
+            QColor dark;
+            QColor light;
+        } colors[] = {
+            {"ERROR",   QColor(0xF4, 0x47, 0x47), QColor(0xC6, 0x28, 0x28)},
+            {"WARN",    QColor(0xDC, 0xDC, 0xAA), QColor(0x8A, 0x6D, 0x00)},
+            {"SUCCESS", QColor(0x4E, 0xC9, 0x6B), QColor(0x2E, 0x7D, 0x32)},
+            {"STEP",    QColor(0x56, 0x9C, 0xD6), QColor(0x15, 0x65, 0xC0)},
+            {"HTTP",    QColor(0x80, 0x80, 0x80), QColor(0x60, 0x60, 0x60)},
+        };
+
+        for (const LevelColor &entry : colors) {
+            if (level == QLatin1String(entry.level))
+                return lightBg ? entry.light : entry.dark;
+        }
+        return lightBg ? QColor(0x20, 0x27, 0x33) : QColor(0xD4, 0xD4, 0xD4);
+    }
+
+} // namespace
+
 void MainWindow::onToggleLogClicked() {
     m_config.logExpanded = !m_config.logExpanded;
     applyLogExpanded(m_config.logExpanded);
@@ -68,16 +93,12 @@ void MainWindow::appendLog(const QString &level, const QString &msg) {
         return;
     }
 
-    QColor color;
-    if (level == "ERROR")        color = QColor(0xF4, 0x47, 0x47);
-    else if (level == "WARN")    color = QColor(0xDC, 0xDC, 0xAA);
-    else if (level == "SUCCESS") color = QColor(0x4E, 0xC9, 0x6B);
-    else if (level == "STEP")    color = QColor(0x56, 0x9C, 0xD6);
-    else if (level == "HTTP")    color = QColor(0x80, 0x80, 0x80);
-    else                         color = QColor(0xD4, 0xD4, 0xD4);
+    // 日志底色可能被主题改成浅色，按实际底色选一组合适的前景色
+    const bool lightBg =
+        m_logTextEdit->palette().color(QPalette::Base).lightness() > 128;
 
     QTextCharFormat fmt;
-    fmt.setForeground(color);
+    fmt.setForeground(logLevelColor(level, lightBg));
 
     QTextCursor cursor(m_logTextEdit->document());
     cursor.movePosition(QTextCursor::End);
@@ -130,4 +151,17 @@ void MainWindow::ensureLogFileForToday() {
 
 QString MainWindow::logDirPath() {
     return Config::appDataDir() + "/logs";
+}
+
+QString MainWindow::defaultLogStyleSheet() {
+    // 日志区默认配色；主题里的 log_textedit.qss 存在时会覆盖它
+    return QStringLiteral(
+        "QPlainTextEdit {"
+        "  background-color: #1E1E1E;"
+        "  color: #D4D4D4;"
+        "  border: 1px solid #3C3C3C;"
+        "  font-family: Consolas, 'Courier New', monospace;"
+        "  font-size: 12px;"
+        "}"
+    );
 }
