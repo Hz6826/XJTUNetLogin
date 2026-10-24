@@ -139,6 +139,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path portable | Out-Null
           Copy-Item -Path build\bin\* -Destination portable\ -Recurse -Force
+          # 主题保持外置：随便携版放在 exe 同目录，运行时从 <exe dir>\themes 读取
+          Copy-Item -Path themes -Destination portable\ -Recurse -Force
           # 无 BOM 的空 JSON —— 便携版标记
           [System.IO.File]::WriteAllText("$PWD\portable\config.json", "{}")
 

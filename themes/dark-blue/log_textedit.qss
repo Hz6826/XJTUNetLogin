@@ -1,0 +1,9 @@
+/* 暗夜蓝：日志区样式（内联样式优先，需要单独覆盖） */
+QPlainTextEdit {
+    background-color: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #3a4a63;
+    border-radius: 4px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}
