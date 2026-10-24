@@ -81,6 +81,26 @@ QPushButton { border-image: url(images/btn.png); }
 
 程序会在应用前把相对 `url(...)` 改写成绝对路径（Qt 的 QSS 默认按进程工作目录解析 url，直接用相对路径会找不到文件）。支持 png/jpg/svg，SVG 由 Qt 的 `qsvg` 图像格式插件加载，releases 里已随包携带。
 
+### 背景图
+
+窗口尺寸约束（`MainWindow.h`）：宽 360–500 px，高 495–695 px（日志区展开时；收起后高度会再减少约 300 px）。展开状态大致是 `480 × 690`，接近 **5:7** 的竖图，所以：
+
+- **推荐画布：1000 × 1400 px**（5:7，2x 资源），另提供 1x 版本 `bg.png`（500 × 700）和 2x 版本 `bg@2x.png`（1000 × 1400）。Qt 样式表会按屏幕缩放比例自动挑 `@2x` 文件（`QStyleSheetStyle` 的 `@Nx` 机制），不用自己判断 DPI。
+- Qt 样式表**没有 `background-size`**，所以图片不会自动等比缩放，按需求二选一：
+  - 跟随窗口拉伸：`QMainWindow { border-image: url(images/bg.png) 0 0 0 0; }`（`border-image` 九宫格缩放，后四个 `0` 表示不切边、整体拉伸）
+  - 原尺寸居中、超出裁掉：`background-image: url(images/bg.png); background-position: center; background-repeat: no-repeat;`（小图默认会平铺）
+- 窗口宽高比在 0.52–0.72 之间变化（日志展开/收起、窗口拖动缩放），拉伸会有轻微变形：把视觉重点放在中间区域，边缘留白，别让关键元素贴边。
+- 网格/渐变类背景适合可拉伸设计；写实图片建议用居中裁剪方案。
+- 背景图上还要盖控件，记得让面板半透明，否则会被背景色规则完全盖住：
+
+```css
+QMainWindow { border-image: url(images/bg.png) 0 0 0 0; }
+QWidget { background: transparent; }
+QGroupBox, QTabWidget::pane { background-color: rgba(255, 255, 255, 0.72); }
+```
+
+- 资源建议用 png/jpg、单张 < 500 KB，避免主题包过大。
+
 ### 下拉箭头
 
 默认会显示系统箭头；要跟主题配色一致，需要自带箭头图片并写 `down-arrow` 规则，同时给文字留出右侧空间：
