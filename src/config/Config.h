@@ -35,6 +35,7 @@ struct Config {
     CloseAction closeAction = CloseAction::Ask;
     QByteArray windowGeometry;
     int expandedWindowHeight = -1;
+    QString themeId = "default";  // 主题
 
     // ---------- debug 分组 ---------
     // 不在UI显示，需手动配置json以防误配置

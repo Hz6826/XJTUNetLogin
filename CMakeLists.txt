@@ -59,6 +59,7 @@ qt_add_executable(XJTUNetLogin
         src/net/SrunHttpUtils.cpp
         src/ui/MainWindowVersion.cpp
         src/util/SingleInstance.cpp
+        src/ui/MainWindowTheme.cpp
 )
 
 set_target_properties(XJTUNetLogin PROPERTIES

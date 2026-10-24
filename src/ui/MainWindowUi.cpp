@@ -14,6 +14,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QDir>
 #include <QFile>
 #include <QFormLayout>
 #include <QGridLayout>
@@ -260,6 +261,7 @@ void MainWindow::buildUiSettingsPanel(QWidget *parent) {
 
     buildUiAutoLogin(uiSettingsLayout);
     buildUiPollingSetting(uiSettingsLayout);
+    buildUiAppearanceSetting(uiSettingsLayout);
     buildUiMiscSetting(uiSettingsLayout);
     uiSettingsLayout->addStretch();
 
@@ -310,6 +312,37 @@ void MainWindow::buildUiPollingSetting(QVBoxLayout *uiSettingsLayout) {
     pollingLayout->addWidget(m_pollTimerApplyBtn);
 
     uiSettingsLayout->addWidget(pollingGroup);
+}
+
+void MainWindow::buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout) {
+    auto *appearanceGroup = new QGroupBox("外观");
+    auto *appearanceLayout = new QVBoxLayout(appearanceGroup);
+    auto *themeLayout = new QHBoxLayout;
+
+    auto *themeLabel = new QLabel("主题");
+    themeLabel->setToolTip(QString("主题目录：%1\n每个子文件夹是一套主题，需包含 styles.qss")
+        .arg(QDir::toNativeSeparators(themesDirPath())));
+    themeLabel->installEventFilter(this);
+
+    m_themeCombo = new QComboBox;
+    updateThemeList();
+
+    m_themeListRefreshBtn = new QPushButton("刷新");
+    m_themeListRefreshBtn->setToolTip("重新扫描主题目录，并重新应用当前主题");
+
+    m_themeDirOpenBtn = new QToolButton;
+    m_themeDirOpenBtn->setAutoRaise(true);
+    m_themeDirOpenBtn->setToolTip("打开主题目录");
+    m_themeDirOpenBtn->setIcon(m_iconFolder);
+
+    themeLayout->addWidget(themeLabel);
+    themeLayout->addWidget(m_themeCombo, 1);
+    themeLayout->addWidget(m_themeListRefreshBtn);
+    themeLayout->addWidget(m_themeDirOpenBtn);
+
+    appearanceLayout->addLayout(themeLayout);
+
+    uiSettingsLayout->addWidget(appearanceGroup);
 }
 
 void MainWindow::buildUiMiscSetting(QVBoxLayout *uiSettingsLayout) {

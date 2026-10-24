@@ -70,6 +70,8 @@ private:
     void buildUiAutoLogin(QVBoxLayout *uiSettingsLayout);
     void buildUiPollingSetting(QVBoxLayout *uiSettingsLayout);
 
+    void buildUiAppearanceSetting(QVBoxLayout *uiSettingsLayout);
+
     void buildUiMiscSetting(QVBoxLayout *uiSettingsLayout);
 
     void buildUiOpBtnRow(QVBoxLayout *mainLayout);
@@ -115,6 +117,13 @@ private:
     void onVersionCheckFinished(QNetworkReply *reply);
     void updateLogSensitiveUi() const;
     void toggleLogSensitive();
+
+    // ---------- 主题配置（MainWindowTheme.cpp）----------
+    static QString themesDirPath();
+    void refreshTheme();
+    void updateThemeList();
+    void applyTheme(const QString &themeId);
+    void openThemesDir();
 
     // 成员
     SrunClient *m_client = nullptr;
@@ -175,6 +184,11 @@ private:
 
     QLineEdit *m_pollTimerIntervalEdit = nullptr;
     QPushButton *m_pollTimerApplyBtn = nullptr;
+
+    QComboBox *m_themeCombo = nullptr;
+    QPushButton *m_themeListRefreshBtn = nullptr;
+    QToolButton *m_themeDirOpenBtn = nullptr;
+    QString m_defaultStyleName; // Qt 原生样式名，default 主题即恢复它
 
     QComboBox *m_defaultCloseActionCombo = nullptr;
     QLineEdit *m_baseUrlOverrideEdit = nullptr;

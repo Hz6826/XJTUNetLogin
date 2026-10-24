@@ -9,10 +9,12 @@
 #include "ThemeUtils.h"
 #include "net/SrunClient.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStyle>
 #include <QSystemTrayIcon>
 #include <QTabWidget>
 #include <QTimer>
@@ -29,6 +31,9 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     m_config = Config::load();
     m_client->setLogSensitive(m_config.logSensitive);
 
+    // 记录原生样式名（default 主题恢复它），需在任何 QSS 生效前取
+    m_defaultStyleName = QApplication::style()->name();
+
     loadIcons();
     m_lastDarkTheme = Theme::isDark();
     buildUi();
@@ -41,6 +46,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     connectSignals();
     applyLogExpanded(m_config.logExpanded);
     logWelcome();
+    applyTheme(m_config.themeId);
     m_client->checkInternet();
     m_versionNam = new QNetworkAccessManager(this);
     checkVersion();
@@ -129,6 +135,8 @@ void MainWindow::changeEvent(QEvent *event) {
                 m_clearLogBtn->setIcon(m_iconTrash);
             if (m_openLogDirBtn)
                 m_openLogDirBtn->setIcon(m_iconFolder);
+            if (m_themeDirOpenBtn)
+                m_themeDirOpenBtn->setIcon(m_iconFolder);
         }
     }
     QMainWindow::changeEvent(event);
@@ -291,6 +299,15 @@ void MainWindow::connectSignals() {
             this, &MainWindow::saveConfigSilently);
     connect(m_baseUrlOverrideSaveBtn, &QPushButton::clicked,
         this, &MainWindow::onBaseUrlOverrideSaveBtnClicked);
+    connect(m_themeCombo, QOverload<int>::of(&QComboBox::activated),
+        this, &MainWindow::refreshTheme);
+    // 刷新后重新应用当前主题：既能看到新放进来的主题，也能立即预览改过的 styles.qss
+    connect(m_themeListRefreshBtn, &QPushButton::clicked, this, [this] {
+        updateThemeList();
+        applyTheme(m_config.themeId);
+    });
+    connect(m_themeDirOpenBtn, &QToolButton::clicked,
+        this, &MainWindow::openThemesDir);
 
     connect(m_client, &SrunClient::logMessage,
             this, &MainWindow::onLogMessage);
