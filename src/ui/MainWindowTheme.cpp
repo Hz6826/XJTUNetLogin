@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QStringList>
 #include <QUrl>
@@ -156,6 +157,7 @@ void MainWindow::updateThemeList() {
 void MainWindow::applyTheme(const QString &themeId) {
     if (themeId.isEmpty() || themeId == kDefaultThemeId) {
         qApp->setStyleSheet(QString());
+        m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
         appendLog("INFO", QString("当前主题：默认（%1）").arg(m_defaultStyleName));
         return;
     }
@@ -165,6 +167,7 @@ void MainWindow::applyTheme(const QString &themeId) {
     if (!styleFile.open(QIODevice::ReadOnly)) {
         // 主题目录被删/改名：清掉旧的 QSS，避免残留上一次的样式
         qApp->setStyleSheet(QString());
+        m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
         appendLog("WARN",
                   QString("无法读取主题 %1 的 styles.qss，已恢复默认样式")
                       .arg(themeId));
@@ -173,6 +176,17 @@ void MainWindow::applyTheme(const QString &themeId) {
 
     qApp->setStyleSheet(resolveStyleSheetUrls(
         QString::fromUtf8(styleFile.readAll()), themeDir));
+
+    // 日志区的内联样式优先级高于全局 QSS，主题可选地用 log_textedit.qss 单独覆盖；
+    // 没有这个文件就沿用内置的默认配色。
+    QFile logStyleFile(themeDir + QStringLiteral("/log_textedit.qss"));
+    if (logStyleFile.open(QIODevice::ReadOnly)) {
+        m_logTextEdit->setStyleSheet(resolveStyleSheetUrls(
+            QString::fromUtf8(logStyleFile.readAll()), themeDir));
+    } else {
+        m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
+    }
+
     appendLog("INFO", QString("当前主题：%1").arg(themeId));
 }
 

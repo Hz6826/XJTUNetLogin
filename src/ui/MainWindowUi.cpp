@@ -188,15 +188,7 @@ void MainWindow::buildUiLogPanel(QWidget *parent) {
 
     m_logTextEdit = new QPlainTextEdit;
     m_logTextEdit->setReadOnly(true);
-    m_logTextEdit->setStyleSheet(
-        "QPlainTextEdit {"
-        "  background-color: #1E1E1E;"
-        "  color: #D4D4D4;"
-        "  border: 1px solid #3C3C3C;"
-        "  font-family: Consolas, 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "}"
-    );
+    m_logTextEdit->setStyleSheet(defaultLogStyleSheet());
     m_logTextEdit->setMaximumBlockCount(1000);
     layout->addWidget(m_logTextEdit, 1);
 }

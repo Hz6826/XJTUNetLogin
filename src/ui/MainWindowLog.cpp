@@ -131,3 +131,16 @@ void MainWindow::ensureLogFileForToday() {
 QString MainWindow::logDirPath() {
     return Config::appDataDir() + "/logs";
 }
+
+QString MainWindow::defaultLogStyleSheet() {
+    // 日志区默认配色；主题里的 log_textedit.qss 存在时会覆盖它
+    return QStringLiteral(
+        "QPlainTextEdit {"
+        "  background-color: #1E1E1E;"
+        "  color: #D4D4D4;"
+        "  border: 1px solid #3C3C3C;"
+        "  font-family: Consolas, 'Courier New', monospace;"
+        "  font-size: 12px;"
+        "}"
+    );
+}

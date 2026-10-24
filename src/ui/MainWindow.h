@@ -98,6 +98,7 @@ private:
     void writeLogToFile(const QString &level, const QString &msg);
     void ensureLogFileForToday();
     static QString logDirPath();
+    static QString defaultLogStyleSheet();
 
     // ---------- 认证/自动登录（MainWindowAuth.cpp） ----------
     void connectSignals();
