@@ -1,0 +1,10 @@
+{
+  "name": "樱花",
+  "version": "1.0.0",
+  "author": "Hz6826",
+  "updatedAt": "2026-10-24",
+  "link": "https://github.com/Hz6826/XJTUNetLogin",
+  "iconColor": { "light": "#c2185b", "dark": "#ffb3c8" },
+  "titleBarColor": { "light": "#fbe4ea", "dark": "#2a1e23" },
+  "borderColor": { "light": "#e8c6cf", "dark": "#5a3b47" }
+}

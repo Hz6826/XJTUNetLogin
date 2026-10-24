@@ -1,0 +1,9 @@
+/* 樱花 - 浅色日志区 */
+QPlainTextEdit {
+    background-color: #fffafb;
+    color: #3a2b30;
+    border: 1px solid #e8c6cf;
+    border-radius: 4px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}

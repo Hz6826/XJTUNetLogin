@@ -1,0 +1,108 @@
+/* 樱花 - 深色 */
+QWidget {
+    background-color: #241a1e;
+    color: #f0dfe5;
+}
+
+QLineEdit, QComboBox {
+    background-color: #1a1216;
+    border: 1px solid #5a3b47;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #f0dfe5;
+}
+
+QPushButton {
+    background-color: #3a2830;
+    border: 1px solid #5a3b47;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #f0dfe5;
+}
+
+QPushButton:hover {
+    background-color: #4a333d;
+}
+
+QCheckBox {
+    color: #f0dfe5;
+}
+
+QGroupBox {
+    border: 1px solid #5a3b47;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 6px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+    color: #ffb3c8;
+}
+
+QTabWidget::pane {
+    border: 1px solid #5a3b47;
+}
+
+QTabBar::tab {
+    background: #2a1e23;
+    color: #d9c3cb;
+    border: 1px solid #5a3b47;
+    border-bottom: none;
+    padding: 4px 10px;
+}
+
+QTabBar::tab:selected {
+    background: #3a2830;
+    color: #ffffff;
+}
+
+QScrollBar:vertical {
+    background: #1c1417;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #5a3b47;
+    border-radius: 5px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #7a4f5e;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+QScrollBar:horizontal {
+    background: #1c1417;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background: #5a3b47;
+    border-radius: 5px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #7a4f5e;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
