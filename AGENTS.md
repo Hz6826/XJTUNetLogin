@@ -13,7 +13,7 @@ Guidance for AI coding agents working in this repository. It summarizes the proj
 - License: MIT (project), Qt under LGPLv3 (dynamically linked; license texts are shipped in release builds)
 - macOS/Linux code paths exist in `AutoStart` but are not fully supported/tested; Android is not implemented
 
-Implemented features: login/logout, connectivity test, online-session info, account storage, tray minimization, auto-start, auto-login, version check, portable mode.
+Implemented features: login/logout, connectivity test, online-session info, account storage, tray minimization, auto-start, auto-login, version check, portable mode, external custom themes (light/dark variants, icon/title-bar/border colors).
 
 ## Build and run
 
@@ -50,7 +50,8 @@ src/
     MainWindowInfo.cpp      Online-info panel formatting
     MainWindowLog.cpp       In-memory/file logging
     MainWindowVersion.cpp   GitHub release version check
-    MainWindowTheme.cpp     Theme selection (WIP, currently stubs)
+    MainWindowTheme.cpp     Theme scan/apply: QSS (light/dark), manifest metadata,
+                            icon tint, DWM title-bar/border colors, themeId persistence
     TrayController.{h,cpp}  QSystemTrayIcon menu, notifications, blink state
     ThemeUtils.h            Dark/light color-scheme helper
   platform/
@@ -73,7 +74,11 @@ packaging/
 .github/workflows/
   build-test.yml            PR build check
   release.yml               Tag/manual release: validate version, build, package, publish
-doc/screenshot.png          README screenshot
+doc/
+  screenshot.png            README screenshot
+  themes.md                 Theme authoring guide (layout, manifest, QSS conventions)
+themes/
+  blue/ sakura/ cyber/ matrix/  Shipped sample themes (external files, light/dark variants)
 ```
 
 ## Architecture and data flow
@@ -116,6 +121,20 @@ After wiring the second-instance signal, it calls `client.startPolling(window.co
 - Closing follows a configurable `CloseAction` (ask/minimize-to-tray/quit); tray quit calls `m_window->close()` so geometry is persisted.
 - About page contains version-check UI and the log-sensitive toggle (double-click the app icon).
 
+### Themes (UI)
+
+Themes are external files, never compiled into Qt resources or the `.qrc`:
+
+- Directory: `<appDataDir>/themes/<themeId>/`, where `appDataDir` is `%APPDATA%\Hz6826\XJTUNetLogin` (installed) or the exe directory (portable). `default` is reserved and restores the native Qt style; the settings combo shows that style's name (e.g. `windows11`).
+- A theme is any subdirectory containing `styles.qss`, `styles-light.qss` or `styles-dark.qss`. `manifest.json` is optional metadata: `name`, `version`, `author`, `updatedAt`, `link`, plus `iconColor` / `titleBarColor` / `borderColor`, each either one color string or `{ "light", "dark" }`.
+- `MainWindowTheme.cpp` owns scanning (`updateThemeList()`), applying (`applyTheme()`), refresh and opening the theme folder. File lookup prefers `styles-<current scheme>.qss`, then `styles.qss`, then the other scheme; `log_textedit*.qss` follows the same order.
+- `applyTheme()` sets the app stylesheet with relative `url(...)` rewritten to absolute paths (QSS resolves urls against the working directory), applies the log widget's own stylesheet (its inline style wins over the app QSS), re-tints line icons from `iconColor`, and sets DWM caption/text/border colors via `DwmSetWindowAttribute` (Windows 11 only, silently ignored elsewhere).
+- `QStyleHints::colorSchemeChanged` re-applies the active theme; `showEvent()` re-applies the DWM colors because `setWindowFlags()` recreates the native window handle.
+- Log level foreground colors adapt to the log widget's actual background lightness (`MainWindowLog.cpp`), not to the theme.
+- Selection persists in `ui.themeId`; switching also persists via `saveConfigSilently()`.
+- Packaging: `release.yml` copies the repo `themes/` directory into the portable zip next to the exe; `installer.iss` installs it into `%APPDATA%\Hz6826\XJTUNetLogin\themes` with `uninsneveruninstall`.
+- Theme authoring details live in `doc/themes.md`; sample themes under `themes/`.
+
 ### Tray / single instance / auto-start
 
 - `TrayController` owns the tray menu/icon and notifications, blinks while busy, and calls `MainWindow::onAuthClicked()` for login/logout.
@@ -128,7 +147,7 @@ After wiring the second-instance signal, it calls `client.startPolling(window.co
 
 - `auth`: username, password (currently plaintext), acId, domain, baseUrlOverride
 - `auto`: autoStart, autoLogin, pollTimerIntervalMs (clamped to 10 s–10 min)
-- `ui`: logExpanded, filterHttpLog, currentTab, closeAction, windowGeometry, expandedWindowHeight, themeId (WIP)
+- `ui`: logExpanded, filterHttpLog, currentTab, closeAction, windowGeometry, expandedWindowHeight, themeId
 - `debug`: logSensitive (hidden; disables log redaction when true)
 
 Storage locations:
@@ -159,14 +178,13 @@ Storage locations:
 ## Build, CI, and release
 
 - `build-test.yml`: runs on pull requests to `main` and `workflow_dispatch`; configures with Qt 6.8.3 + MinGW and builds Release.
-- `release.yml`: runs on tags matching `v[0-9]*` or manual dispatch. It validates the version as semver, builds, copies Qt/third-party license texts, creates the portable zip (`XJTUNetLogin-Portable-<version>.zip`), builds the Inno Setup installer, and publishes a GitHub release. Pre-release tags (semver `-prerelease`) are marked as such.
+- `release.yml`: runs on tags matching `v[0-9]*` or manual dispatch. It validates the version as semver, builds, copies Qt/third-party license texts, copies the external `themes/` directory into the portable package (`themes/` next to the exe; the installer puts it in `%APPDATA%\Hz6826\XJTUNetLogin\themes`), creates the portable zip (`XJTUNetLogin-Portable-<version>.zip`), builds the Inno Setup installer, and publishes a GitHub release. Pre-release tags (semver `-prerelease`) are marked as such.
 - Version selection: tag `vX.Y.Z` or the `version` input; `-DXJTU_VERSION` is passed to CMake, `AppVersion` to Inno Setup, and the version is embedded in `AppInfo.h` and the Windows VERSIONINFO resource.
 - Commit subjects follow the existing style: `fix(scope): ...`, `feat(scope): ...`, `build: ...`, `ci: ...`, `doc: ...`.
 - For UI/behavior changes, update `README.md` when the change affects users; keep `AGENTS.md` updated for architectural changes.
 
 ## Current gaps / work in progress
 
-- Theme selection is incomplete: `MainWindowTheme.cpp` contains empty stubs, `Config::themeId` exists, and the appearance settings group is not yet wired into the settings tab. `buildUiAppearanceSetting()` is currently unused; do not assume theme switching works until this is finished.
 - No unit/integration tests are checked in. If you add tests, wire them into CMake and CI explicitly (the current workflows only build).
 - macOS/Linux support is best-effort and untested; installer/release artifacts are Windows-only.
 - The main window remains fairly large despite being split across files; prefer extracting new panels/controllers rather than growing `MainWindow` further.
