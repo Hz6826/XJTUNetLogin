@@ -1,0 +1,10 @@
+{
+  "name": "矩阵",
+  "version": "1.0.0",
+  "author": "Hz6826",
+  "updatedAt": "2026-10-24",
+  "link": "https://github.com/Hz6826/XJTUNetLogin",
+  "iconColor": { "light": "#007a4d", "dark": "#00ff9c" },
+  "titleBarColor": { "light": "#e3f7ec", "dark": "#07120d" },
+  "borderColor": { "light": "#a8e0c6", "dark": "#124d33" }
+}

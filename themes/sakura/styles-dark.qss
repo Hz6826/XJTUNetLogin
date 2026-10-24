@@ -12,6 +12,24 @@ QLineEdit, QComboBox {
     color: #f0dfe5;
 }
 
+QComboBox {
+    padding-right: 18px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border: none;
+    background: transparent;
+}
+
+QComboBox::down-arrow {
+    image: url(images/arrow-down-dark.svg);
+    width: 10px;
+    height: 6px;
+}
+
 QPushButton {
     background-color: #3a2830;
     border: 1px solid #5a3b47;

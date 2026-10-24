@@ -1,0 +1,9 @@
+/* 赛博 - 浅色日志区 */
+QPlainTextEdit {
+    background-color: #ffffff;
+    color: #2a1230;
+    border: 1px solid #e6b8d4;
+    border-radius: 4px;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}

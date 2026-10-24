@@ -1,0 +1,126 @@
+/* 赛博 - 浅色（品红主色 + 青色点缀） */
+QWidget {
+    background-color: #faf3fb;
+    color: #2a1230;
+}
+
+QLineEdit, QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #e6b8d4;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #2a1230;
+}
+
+QComboBox {
+    padding-right: 18px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border: none;
+    background: transparent;
+}
+
+QComboBox::down-arrow {
+    image: url(images/arrow-down-light.svg);
+    width: 10px;
+    height: 6px;
+}
+
+QPushButton {
+    background-color: #f6e3f2;
+    border: 1px solid #d1006f;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #2a1230;
+}
+
+QPushButton:hover {
+    background-color: #f0d3ea;
+}
+
+QCheckBox {
+    color: #2a1230;
+}
+
+QGroupBox {
+    border: 1px solid #e6b8d4;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 6px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+    color: #d1006f;
+}
+
+QTabWidget::pane {
+    border: 1px solid #e6b8d4;
+}
+
+QTabBar::tab {
+    background: #f6e3f2;
+    color: #7a4a68;
+    border: 1px solid #e6b8d4;
+    border-bottom: none;
+    padding: 4px 10px;
+}
+
+QTabBar::tab:selected {
+    background: #ffffff;
+    color: #007a9e;
+}
+
+QScrollBar:vertical {
+    background: #f7ebf4;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #e0b3d2;
+    border-radius: 5px;
+    min-height: 24px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #007a9e;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+QScrollBar:horizontal {
+    background: #f7ebf4;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background: #e0b3d2;
+    border-radius: 5px;
+    min-width: 24px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #007a9e;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
