@@ -451,6 +451,15 @@ void SrunClient::stopPolling() {
     m_periodicPollInFlight = false;
 }
 
+void SrunClient::applyPollingIntervalAndRestart() {
+    // 无参数 overload，用于保留原interval并重启
+    if (!m_pollTimer) {
+        startPolling();
+        return;
+    }
+    applyPollingIntervalAndRestart(m_pollTimer->interval());
+}
+
 void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
     // timer 还没创建时直接走 startPolling，否则这里静默什么都不做
     if (!m_pollTimer) {
@@ -459,6 +468,7 @@ void SrunClient::applyPollingIntervalAndRestart(int intervalMs) {
     }
     m_pollTimer->setInterval(intervalMs);
     m_pollTimer->start();
+    m_periodicFailureCount = 0;  // 重置计数器
     doPeriodicPoll();  // 点击按钮后立即执行一次
 }
 
@@ -550,7 +560,10 @@ void SrunClient::onPeriodicPollFinished(QNetworkReply *reply) {
     };
 
     if (netErr != QNetworkReply::NoError) {
-        noteFailure(netErrStr);
+        // 网络层错误一般意味着本机确实断网，直接按离线处理；
+        // 服务器异常/解析失败可能是门户抖动，交给 noteFailure 连续计数。
+        log("WARN", QString("在线轮询失败: %1").arg(netErrStr));
+        emit onlineStatusRefreshed(false, {});
         return;
     }
 

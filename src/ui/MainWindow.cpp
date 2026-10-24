@@ -33,6 +33,7 @@ MainWindow::MainWindow(SrunClient *client, QWidget *parent)
     m_lastDarkTheme = Theme::isDark();
     buildUi();
     loadConfigToUi();
+    updateUiForState();
 
     m_postLoginTimer = new QTimer(this);
     m_postLoginTimer->setSingleShot(true);
@@ -268,8 +269,8 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onToggleLogClicked);
     connect(m_authBtn, &QPushButton::clicked,
             this, &MainWindow::onAuthClicked);
-    connect(m_pingBtn, &QPushButton::clicked,
-            this, &MainWindow::onPingClicked);
+    connect(m_pingAndRefreshBtn, &QPushButton::clicked,
+            this, &MainWindow::onPingAndRefreshClicked);
     connect(m_saveBtn, &QPushButton::clicked,
             this, &MainWindow::onSaveConfigClicked);
     connect(m_clearLogBtn, &QToolButton::clicked,

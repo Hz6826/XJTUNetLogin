@@ -34,6 +34,9 @@ public:
 
     void startPolling(int intervalMs = 30000);
     void stopPolling();
+
+    void applyPollingIntervalAndRestart();
+
     void applyPollingIntervalAndRestart(int intervalMs);
 
     void setLogSensitive(bool logSensitive);

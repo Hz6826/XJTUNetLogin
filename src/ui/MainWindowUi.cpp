@@ -109,8 +109,8 @@ void MainWindow::buildUiOpBtnRow(QVBoxLayout *mainLayout) {
     m_authBtn = new QPushButton("登录");   // 或注销，合并为一个按钮
     buttonRow->addWidget(m_authBtn, 1);
 
-    m_pingBtn = new QPushButton("测试连接");
-    buttonRow->addWidget(m_pingBtn, 1);
+    m_pingAndRefreshBtn = new QPushButton("刷新状态");
+    buttonRow->addWidget(m_pingAndRefreshBtn, 1);
 
     m_saveBtn = new QPushButton("保存账户信息");
     m_saveBtn->setToolTip("登录成功时自动保存配置");
