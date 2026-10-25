@@ -13,6 +13,10 @@
 [![Build & Release](https://img.shields.io/github/actions/workflow/status/Hz6826/XJTUNetLogin/release.yml?label=build&logo=github)](https://github.com/Hz6826/XJTUNetLogin/actions/workflows/release.yml)
 ![GitHub Stars](https://img.shields.io/github/stars/Hz6826/XJTUNetLogin?style=social)
 
+<img src="doc/meme.png" alt="老实登录，很枯燥吧" width="800"/>
+
+> “老实登录，很枯燥吧”
+
 </div>
 
 ## 快速开始
