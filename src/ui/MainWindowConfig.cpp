@@ -51,7 +51,9 @@ bool MainWindow::saveConfigSilently() {
     syncAccountFieldsToConfig();
 
     m_config.autoStart = m_autoStartCheck->isChecked();
-    m_config.autoLogin = m_autoLoginCheck->isChecked();
+    if (!m_disableAutoLoginUntilRestart) {
+        m_config.autoLogin = m_autoLoginCheck->isChecked();
+    }
 
     m_config.filterHttpLog = m_filterHttpCheck->isChecked();
     m_config.currentTab    = m_detailTab->currentIndex();

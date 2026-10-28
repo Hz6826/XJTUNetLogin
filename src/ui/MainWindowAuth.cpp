@@ -27,6 +27,14 @@ void MainWindow::onAuthClicked() {
                         m_config.acId, m_config.domain);
     } else if (m_onlineState == OnlineState::Online) {
         appendLog("STEP", "用户点击注销");
+        m_pendingAutoLoginLogoutChoice = AutoLoginLogoutChoice::None;
+        if (m_autoLoginCheck->isChecked()) {
+            m_pendingAutoLoginLogoutChoice = askAutoLoginChoiceOnLogout();
+            if (m_pendingAutoLoginLogoutChoice == AutoLoginLogoutChoice::None) {
+                appendLog("INFO", "已取消注销");
+                return;
+            }
+        }
         if (m_postLoginTimer->isActive()) {
             m_postLoginTimer->stop();
             appendLog("WARN", "取消了计划的外网连通性检查");
@@ -150,10 +158,7 @@ void MainWindow::onLogoutSucceeded(const QJsonObject &) {
     clearOnlineInfoPanel();
     m_pendingAutoLogin = false;
 
-    if (m_autoLoginCheck->isChecked()) {
-        m_autoLoginCheck->setChecked(false);
-        appendLog("INFO", "已取消自动登录（用户主动注销）");
-    }
+    applyPendingLogoutAutoLoginChoice();
 
     appendLog("SUCCESS", "注销成功");
 }
@@ -170,9 +175,8 @@ void MainWindow::onLogoutFailed(const QString &msg, const QJsonObject &) {
 
     // 注销失败也可能是服务器端其实已经下线。此时若还允许自动登录，
     // 下一轮轮询会立刻把用户重新登回去，让他误以为注销没有生效。
-    if (m_autoLoginCheck->isChecked()) {
-        m_autoLoginCheck->setChecked(false);
-        appendLog("INFO", "注销失败，已取消自动登录（避免被自动重新登录）");
+    if (applyPendingLogoutAutoLoginChoice()) {
+        appendLog("WARN", "注销失败，已按所选策略处理自动登录，避免被自动重新登录");
     }
 
     m_client->queryOnline(true);
@@ -205,7 +209,74 @@ void MainWindow::onOnlineStatusRefreshed(bool online, const QJsonObject &info) {
     }
 }
 
+MainWindow::AutoLoginLogoutChoice MainWindow::askAutoLoginChoiceOnLogout() {
+    const bool wasHidden = !isVisible();
+    const bool wasMinimized = isMinimized();
+    if (wasHidden || wasMinimized) {
+        showNormal();
+        raise();
+        activateWindow();
+    }
+
+    QMessageBox box(this);
+    box.setWindowTitle("注销后自动登录");
+    box.setText("自动登录当前已开启。注销后要如何处理自动登录？");
+    box.setIcon(QMessageBox::Question);
+
+    QPushButton *disableOnceBtn = box.addButton("临时禁用（本次运行）", QMessageBox::AcceptRole);
+    QPushButton *disableAlwaysBtn = box.addButton("关闭自动登录", QMessageBox::DestructiveRole);
+    QPushButton *cancelBtn = box.addButton("取消注销", QMessageBox::RejectRole);
+
+    box.setDefaultButton(disableOnceBtn);
+    box.setEscapeButton(cancelBtn);
+    box.exec();
+
+    if (wasHidden) {
+        hide();
+    } else if (wasMinimized) {
+        showMinimized();
+    }
+
+    if (box.clickedButton() == disableOnceBtn)
+        return AutoLoginLogoutChoice::DisableUntilRestart;
+    if (box.clickedButton() == disableAlwaysBtn)
+        return AutoLoginLogoutChoice::DisablePermanently;
+    return AutoLoginLogoutChoice::None;
+}
+
+bool MainWindow::applyPendingLogoutAutoLoginChoice() {
+    const AutoLoginLogoutChoice choice = m_pendingAutoLoginLogoutChoice;
+    m_pendingAutoLoginLogoutChoice = AutoLoginLogoutChoice::None;
+    if (choice == AutoLoginLogoutChoice::None)
+        return false;
+
+    setAutoLoginCheckboxSilently(false);
+    if (choice == AutoLoginLogoutChoice::DisableUntilRestart) {
+        m_disableAutoLoginUntilRestart = true;
+        m_autoLoginCheck->setText("自动登录（禁用至应用重启）");
+        appendLog("INFO", "已临时禁用自动登录至下次启动");
+    } else {
+        m_disableAutoLoginUntilRestart = false;
+        m_autoLoginCheck->setText("自动登录");
+        appendLog("INFO", "已关闭自动登录");
+        if (!saveConfigSilently()) {
+            appendLog("ERROR", "自动登录设置保存失败");
+        }
+    }
+    return true;
+}
+
+void MainWindow::setAutoLoginCheckboxSilently(bool checked) {
+    const QSignalBlocker blocker(m_autoLoginCheck);
+    m_autoLoginCheck->setChecked(checked);
+}
+
 void MainWindow::onAutoLoginToggled(bool on) {
+    if (on && m_disableAutoLoginUntilRestart) {
+        m_disableAutoLoginUntilRestart = false;
+        m_autoLoginCheck->setText("自动登录");
+    }
+
     m_autoLoginFailedTrials = 0;
     m_autoLoginMissingCredsNoted = false;
     if (!on && m_onlineState != OnlineState::Busy)
