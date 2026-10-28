@@ -106,6 +106,16 @@ private:
     void connectSignals();
     void triggerAutoLogin();
     bool shouldAttemptAutoLogin();
+
+    enum class AutoLoginLogoutChoice {
+        None,
+        DisableUntilRestart,
+        DisablePermanently,
+    };
+
+    AutoLoginLogoutChoice askAutoLoginChoiceOnLogout();
+    bool applyPendingLogoutAutoLoginChoice();
+    void setAutoLoginCheckboxSilently(bool checked);
     void setOnlineState(OnlineState s);
     void updateUiForState();
 
@@ -149,6 +159,8 @@ private:
     bool m_firstShowDone = false;
     int m_autoLoginFailedTrials = 0;
     bool m_autoLoginMissingCredsNoted = false;
+    bool m_disableAutoLoginUntilRestart = false;
+    AutoLoginLogoutChoice m_pendingAutoLoginLogoutChoice = AutoLoginLogoutChoice::None;
 
     QNetworkAccessManager *m_versionNam = nullptr;
     bool m_versionCheckInFlight = false;
