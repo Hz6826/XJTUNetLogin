@@ -31,9 +31,11 @@
 | 自动登录          | :white_check_mark: |
 | 自动检查版本        | :white_check_mark: |
 | MacOS/Linux支持 | :memo:             |
-| Android 支持    | :memo:             |
+| Android 支持    | Kotlin 客户端，见 [android/](android/) |
 
 ## 运行
+
+Android 版的使用与构建说明见 [android/README.md](android/README.md)，支持 Android 8.0 及以上版本。
 
 请在 [Releases](https://github.com/Hz6826/XJTUNetLogin/releases) 界面获取最新版本，其中可执行程序为 **Inno Setup** 打包的安装版，名称包含`portal`的压缩包为便携版。
 

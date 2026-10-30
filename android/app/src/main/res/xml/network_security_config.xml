@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <!-- 校园认证网关使用 HTTP；自定义网关需使用 HTTPS。 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.6.21.2</domain>
+        <domain includeSubdomains="false">firefox-portal-detection.com</domain>
+    </domain-config>
+</network-security-config>

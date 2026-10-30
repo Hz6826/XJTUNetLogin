@@ -1,2 +1,10 @@
 .idea
 local
+android/.gradle/
+android/.gradle-user/
+android/.kotlin/
+android/**/build/
+android/local.properties
+android/.tools/
+android/**/*.jks
+android/**/*.keystore
