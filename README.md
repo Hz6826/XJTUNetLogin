@@ -33,6 +33,8 @@
 
 请在 [Releases](https://github.com/Hz6826/XJTUNetLogin/releases) 界面获取最新版本。其中可执行程序为 **Inno Setup** 打包的安装版，名称包含 `Portable` 的压缩包（`XJTUNetLogin-Portable-<版本>.zip`）为便携版。
 
+> 想要在 Android 体验相同功能吗？欢迎访问 [XJTUNetLoginAndroid](https://github.com/Hz6826/XJTUNetLoginAndroid)。
+
 > [!IMPORTANT]
 > 如果要使用开机自启功能，建议使用安装版！
 
@@ -50,19 +52,21 @@
 - :memo: 进行中
 - :x: 近期无计划实现
 
-| 功能             | 实现情况               |
-|----------------|--------------------|
-| 登录/注销          | :white_check_mark: |
-| 测试连接           | :white_check_mark: |
-| 获取在线信息         | :white_check_mark: |
-| 账户存储           | :white_check_mark: |
-| 托盘最小化          | :white_check_mark: |
-| 开机自启           | :white_check_mark: |
-| 自动登录           | :white_check_mark: |
-| 自动检查版本         | :white_check_mark: |
-| 自定义主题          | :white_check_mark: |
-| macOS/Linux 支持 | :memo:             |
-| Android 支持     | :memo:             |
+| 功能             | 实现情况                  |
+|----------------|-----------------------|
+| 登录/注销          | :white_check_mark:    |
+| 测试连接           | :white_check_mark:    |
+| 获取在线信息         | :white_check_mark:    |
+| 账户存储           | :white_check_mark:    |
+| 托盘最小化          | :white_check_mark:    |
+| 开机自启           | :white_check_mark:    |
+| 自动登录           | :white_check_mark:    |
+| 自动检查版本         | :white_check_mark:    |
+| 自定义主题          | :white_check_mark:    |
+| macOS/Linux 支持 | :memo:                |
+| Android 支持     | :white_check_mark: ^1 |
+
+^1: Android 客户端（Kotlin + Miuix）已独立维护：[XJTUNetLoginAndroid](https://github.com/Hz6826/XJTUNetLoginAndroid)，支持 Android 8.0 及以上版本。
 
 ## 自定义主题
 
