@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. It summarizes the proj
 
 ## Project overview
 
-**XJTUNetLogin** (display name: 仙交网络助手) is a Windows desktop client for the Srun-based campus network authentication portal at Xi'an Jiaotong University. It logs in/out of the campus network, shows online-session details, polls the connection in the background, and can auto-login and auto-start with the system.
+**CampusNetLogin** (display name: 校园网络助手) is a Windows desktop client for the Srun-based campus network authentication portal. It logs in/out of the campus network, shows online-session details, polls the connection in the background, and can auto-login and auto-start with the system.
 
 - Language: C++20
 - UI/network: Qt 6.8+ (`Core`, `Gui`, `Widgets`, `Network`, `Svg`)
@@ -18,15 +18,15 @@ Implemented features: login/logout, connectivity test, online-session info, acco
 ## Build and run
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DXJTU_VERSION=1.0.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAPP_VERSION=2.0.0
 cmake --build build -j
-./build/bin/XJTUNetLogin.exe
+./build/bin/CampusNetLogin.exe
 ```
 
 Notes:
 
 - If Qt is not in `PATH`, pass `-DCMAKE_PREFIX_PATH=<Qt>/6.x/mingw_64`.
-- `XJTU_VERSION` may contain a suffix such as `1.0.0-rc.1`; CMake extracts a numeric version for `project()` and passes the full string into `AppInfo.h`.
+- `APP_VERSION` may contain a suffix such as `1.0.0-rc.1`; CMake extracts a numeric version for `project()` and passes the full string into `AppInfo.h`.
 - `windeployqt` runs as a POST_BUILD step on Windows to copy the Qt runtime and plugins into `build/bin`.
 - There is no unit-test target. CI validates compilation via `.github/workflows/build-test.yml`.
 - Do not commit anything under `build/`, `cmake-build-*/`, `dist/`, `portable/`, or `local/`; see `.gitignore`.
@@ -75,7 +75,6 @@ packaging/
   build-test.yml            PR build check
   release.yml               Tag/manual release: validate version, build, package, publish
 doc/
-  screenshot.png            README screenshot
   themes.md                 Theme authoring guide (layout, manifest, QSS conventions)
 themes/
   blue/ sakura/ cyber/ matrix/  Shipped sample themes (external files, light/dark variants)
@@ -125,14 +124,14 @@ After wiring the second-instance signal, it calls `client.startPolling(window.co
 
 Themes are external files, never compiled into Qt resources or the `.qrc`:
 
-- Directory: `<appDataDir>/themes/<themeId>/`, where `appDataDir` is `%APPDATA%\Hz6826\XJTUNetLogin` (installed) or the exe directory (portable). `default` is reserved and restores the native Qt style; the settings combo shows that style's name (e.g. `windows11`).
+- Directory: `<appDataDir>/themes/<themeId>/`, where `appDataDir` is `%APPDATA%\Hz6826\CampusNetLogin` (installed) or the exe directory (portable). `default` is reserved and restores the native Qt style; the settings combo shows that style's name (e.g. `windows11`).
 - A theme is any subdirectory containing `styles.qss`, `styles-light.qss` or `styles-dark.qss`. `manifest.json` is optional metadata: `name`, `version`, `author`, `updatedAt`, `link`, plus `iconColor` / `titleBarColor` / `borderColor` / `linkColor`, each either one color string or `{ "light", "dark" }`.
 - `MainWindowTheme.cpp` owns scanning (`updateThemeList()`), applying (`applyTheme()`), refresh and opening the theme folder. File lookup prefers `styles-<current scheme>.qss`, then `styles.qss`, then the other scheme; `log_textedit*.qss` follows the same order.
 - `applyTheme()` sets the app stylesheet with relative `url(...)` rewritten to absolute paths (QSS resolves urls against the working directory), applies the log widget's own stylesheet (its inline style wins over the app QSS), re-tints line icons from `iconColor`, and sets DWM caption/text/border colors via `DwmSetWindowAttribute` (Windows 11 only, silently ignored elsewhere).
 - `QStyleHints::colorSchemeChanged` re-applies the active theme; `showEvent()` re-applies the DWM colors because `setWindowFlags()` recreates the native window handle.
 - Log level foreground colors adapt to the log widget's actual background lightness (`MainWindowLog.cpp`), not to the theme.
 - Selection persists in `ui.themeId`; switching also persists via `saveConfigSilently()`.
-- Packaging: `release.yml` copies the repo `themes/` directory into the portable zip next to the exe; `installer.iss` installs it into `%APPDATA%\Hz6826\XJTUNetLogin\themes` with `uninsneveruninstall`.
+- Packaging: `release.yml` copies the repo `themes/` directory into the portable zip next to the exe; `installer.iss` installs it into `%APPDATA%\Hz6826\CampusNetLogin\themes` with `uninsneveruninstall`.
 - Theme authoring details live in `doc/themes.md`; sample themes under `themes/`.
 
 ### Tray / single instance / auto-start
@@ -152,7 +151,7 @@ Themes are external files, never compiled into Qt resources or the `.qrc`:
 
 Storage locations:
 
-- Installed mode: `%APPDATA%\Hz6826\XJTUNetLogin\config.json`, logs in `...\logs\xjtu-netlogin-YYYYMMDD.log`
+- Installed mode: `%APPDATA%\Hz6826\CampusNetLogin\config.json`, logs in `...\logs\campus-netlogin-YYYYMMDD.log`
 - Portable mode: if `<exe dir>/config.json` or `<exe dir>/portable.flag` exists, config/logs live next to the executable
 - Config saves use `QSaveFile`; a corrupted file is renamed to `config.json.bak` before defaults are used
 
@@ -178,8 +177,8 @@ Storage locations:
 ## Build, CI, and release
 
 - `build-test.yml`: runs on pull requests to `main` and `workflow_dispatch`; configures with Qt 6.8.3 + MinGW and builds Release.
-- `release.yml`: runs on tags matching `v[0-9]*` or manual dispatch. It validates the version as semver, builds, copies Qt/third-party license texts, copies the external `themes/` directory into the portable package (`themes/` next to the exe; the installer puts it in `%APPDATA%\Hz6826\XJTUNetLogin\themes`), creates the portable zip (`XJTUNetLogin-Portable-<version>.zip`), builds the Inno Setup installer, and publishes a GitHub release. Pre-release tags (semver `-prerelease`) are marked as such.
-- Version selection: tag `vX.Y.Z` or the `version` input; `-DXJTU_VERSION` is passed to CMake, `AppVersion` to Inno Setup, and the version is embedded in `AppInfo.h` and the Windows VERSIONINFO resource.
+- `release.yml`: runs on tags matching `v[0-9]*` or manual dispatch. It validates the version as semver, builds, copies Qt/third-party license texts, copies the external `themes/` directory into the portable package (`themes/` next to the exe; the installer puts it in `%APPDATA%\Hz6826\CampusNetLogin\themes`), creates the portable zip (`CampusNetLogin-Portable-<version>.zip`), builds the Inno Setup installer, and publishes a GitHub release. Pre-release tags (semver `-prerelease`) are marked as such.
+- Version selection: tag `vX.Y.Z` or the `version` input; `-DAPP_VERSION` is passed to CMake, `AppVersion` to Inno Setup, and the version is embedded in `AppInfo.h` and the Windows VERSIONINFO resource.
 - Commit subjects follow the existing style: `fix(scope): ...`, `feat(scope): ...`, `build: ...`, `ci: ...`, `doc: ...`.
 - For UI/behavior changes, update `README.md` when the change affects users; keep `AGENTS.md` updated for architectural changes.
 

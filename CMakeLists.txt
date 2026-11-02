@@ -3,24 +3,24 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # ---------- 版本号处理 ----------
-# XJTU_VERSION 可能是 "1.0.0-rc.3" 这种带后缀的形式
+# APP_VERSION 可能是 "1.0.0-rc.3" 这种带后缀的形式
 # project() 只接受纯数字，所以拆成两部分：
 #   PROJECT_VERSION  →  只给 project() 用，比如 "1.0.0"
-#   XJTU_VERSION     →  完整字符串，给 AppInfo 用，比如 "1.0.0-rc.3"
+#   APP_VERSION     →  完整字符串，给 AppInfo 用，比如 "1.0.0-rc.3"
 
-set(XJTU_VERSION "1.0.0" CACHE STRING "Full project version (may include suffix)")
+set(APP_VERSION "2.0.0" CACHE STRING "Full project version (may include suffix)")
 
 # 拆出数字部分（遇到非数字字符就切掉）
-string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" XJTU_NUMERIC_VERSION "${XJTU_VERSION}")
+string(REGEX MATCH "^[0-9]+(\\.[0-9]+)*" APP_NUMERIC_VERSION "${APP_VERSION}")
 
 # 兜底：万一切出来是空的
-if (NOT XJTU_NUMERIC_VERSION)
-    set(XJTU_NUMERIC_VERSION "0.0.0")
+if (NOT APP_NUMERIC_VERSION)
+    set(APP_NUMERIC_VERSION "0.0.0")
 endif ()
 
-project(XJTUNetLogin VERSION ${XJTU_NUMERIC_VERSION} LANGUAGES CXX)
+project(CampusNetLogin VERSION ${APP_NUMERIC_VERSION} LANGUAGES CXX)
 
-# 后面 configure_file 时把完整版本也传进去（AppInfo.h.in 里用 @XJTU_VERSION@）
+# 后面 configure_file 时把完整版本也传进去（AppInfo.h.in 里用 @APP_VERSION@）
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -41,7 +41,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
 qt_standard_project_setup()
 
 # ---------- 可执行目标 ----------
-qt_add_executable(XJTUNetLogin
+qt_add_executable(CampusNetLogin
         src/main.cpp
         src/net/SrunCrypto.cpp
         src/net/SrunClient.cpp
@@ -62,7 +62,7 @@ qt_add_executable(XJTUNetLogin
         src/ui/MainWindowTheme.cpp
 )
 
-set_target_properties(XJTUNetLogin PROPERTIES
+set_target_properties(CampusNetLogin PROPERTIES
         WIN32_EXECUTABLE $<NOT:$<CONFIG:Debug>>
 )
 
@@ -88,7 +88,7 @@ add_custom_command(
         COMMAND ${CMAKE_COMMAND}
         -D SRC=${CMAKE_SOURCE_DIR}
         -D OUT=${APPINFO_GENERATED}
-        -D VERSION=${XJTU_VERSION}
+        -D VERSION=${APP_VERSION}
         -D NAME=${PROJECT_NAME}
         -D GIT_VERSION_FILE=${GIT_VERSION_FILE}
         -D BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -102,22 +102,22 @@ add_custom_command(
 )
 
 add_custom_target(appinfo DEPENDS ${APPINFO_GENERATED})
-add_dependencies(XJTUNetLogin appinfo)
+add_dependencies(CampusNetLogin appinfo)
 
 if (WIN32)
     # ---------- 生成 Windows 版本资源（VERSIONINFO） ----------
     # FILEVERSION/PRODUCTVERSION 必须是 4 段逗号分隔数字，
-    # 所以把 XJTU_NUMERIC_VERSION（如 "1.0.0"）补齐/截断成 4 段。
+    # 所以把 APP_NUMERIC_VERSION（如 "1.0.0"）补齐/截断成 4 段。
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
 
-    string(REPLACE "." ";" _xjtu_ver_parts "${XJTU_NUMERIC_VERSION}")
-    list(APPEND _xjtu_ver_parts "0" "0" "0" "0")
-    list(GET _xjtu_ver_parts 0 _xjtu_ver_major)
-    list(GET _xjtu_ver_parts 1 _xjtu_ver_minor)
-    list(GET _xjtu_ver_parts 2 _xjtu_ver_patch)
-    list(GET _xjtu_ver_parts 3 _xjtu_ver_tweak)
-    set(XJTU_RC_FILEVERSION
-            "${_xjtu_ver_major},${_xjtu_ver_minor},${_xjtu_ver_patch},${_xjtu_ver_tweak}")
+    string(REPLACE "." ";" _ver_parts "${APP_NUMERIC_VERSION}")
+    list(APPEND _ver_parts "0" "0" "0" "0")
+    list(GET _ver_parts 0 _ver_major)
+    list(GET _ver_parts 1 _ver_minor)
+    list(GET _ver_parts 2 _ver_patch)
+    list(GET _ver_parts 3 _ver_tweak)
+    set(APP_RC_FILEVERSION
+            "${_ver_major},${_ver_minor},${_ver_patch},${_ver_tweak}")
 
     # 配置期生成：版本号变化时 configure_file 会更新，windres 随之重编
     set(VERSION_RC_FILE "${CMAKE_BINARY_DIR}/generated/version.rc")
@@ -128,19 +128,19 @@ if (WIN32)
     )
     set_source_files_properties("${VERSION_RC_FILE}" PROPERTIES GENERATED TRUE)
 
-    target_sources(XJTUNetLogin PRIVATE
+    target_sources(CampusNetLogin PRIVATE
             resources/windows/app.rc
             "${VERSION_RC_FILE}"
     )
 endif()
 
 # 让源文件可以用 "net/SrunClient.h" 这种相对路径 include
-target_include_directories(XJTUNetLogin PRIVATE
+target_include_directories(CampusNetLogin PRIVATE
         src
         ${CMAKE_BINARY_DIR}/generated
 )
 
-target_link_libraries(XJTUNetLogin PRIVATE
+target_link_libraries(CampusNetLogin PRIVATE
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets
@@ -161,13 +161,13 @@ if (WIN32)
     )
 
     if (WINDEPLOYQT_EXE)
-        add_custom_command(TARGET XJTUNetLogin POST_BUILD
+        add_custom_command(TARGET CampusNetLogin POST_BUILD
                 COMMAND "${WINDEPLOYQT_EXE}"
                 --no-translations
                 --no-system-d3d-compiler
                 --no-opengl-sw
                 --compiler-runtime
-                "$<TARGET_FILE:XJTUNetLogin>"
+                "$<TARGET_FILE:CampusNetLogin>"
                 COMMENT "Running windeployqt to copy Qt runtime")
     else ()
         message(WARNING "windeployqt not found, runtime DLLs may not be copied")

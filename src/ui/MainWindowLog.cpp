@@ -137,7 +137,7 @@ void MainWindow::ensureLogFileForToday() {
         return;
     }
 
-    const QString fullPath = QString("%1/xjtu-netlogin-%2.log")
+    const QString fullPath = QString("%1/campus-netlogin-%2.log")
                                  .arg(dir, today.toString("yyyyMMdd"));
     m_logFile.setFileName(fullPath);
     if (!m_logFile.open(QIODevice::Append | QIODevice::Text)) {

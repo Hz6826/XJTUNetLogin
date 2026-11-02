@@ -35,7 +35,7 @@ void MainWindow::checkVersion() {
 
     QNetworkRequest req{QUrl(api)};
     req.setHeader(QNetworkRequest::UserAgentHeader,
-                  QStringLiteral("XJTUNetLogin/%1").arg(AppInfo::Version));
+                  QStringLiteral("CampusNetLogin/%1").arg(AppInfo::Version));
     req.setRawHeader("Accept", "application/vnd.github+json");
     req.setTransferTimeout(8000);
 

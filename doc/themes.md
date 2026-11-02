@@ -1,10 +1,10 @@
 # 主题设计指南
 
-本文说明如何为仙交网络助手制作、调试和分发自定义主题。示例主题见仓库根目录的 `themes/`（`blue`、`sakura`、`cyber`、`matrix`）。
+本文说明如何为校园网络助手制作、调试和分发自定义主题。示例主题见仓库根目录的 `themes/`（`blue`、`sakura`、`cyber`、`matrix`）。
 
 ## 主题放在哪
 
-- 安装版：`%APPDATA%\Hz6826\XJTUNetLogin\themes\<主题ID>`
+- 安装版：`%APPDATA%\Hz6826\CampusNetLogin\themes\<主题ID>`
 - 便携版：主程序同目录 `themes\<主题ID>`（便携模式下 `Config::appDataDir()` 就是 exe 目录）
 - 程序启动时会自动创建 `themes` 目录；设置 → 外观 → 主题旁有「打开主题目录」按钮
 - 一个子文件夹 = 一套主题，**文件夹名就是主题 ID**（`config.json` 的 `ui.themeId` 保存的就是它）
@@ -37,7 +37,7 @@ themes/<主题ID>/
   "version": "1.0.0",
   "author": "Hz6826",
   "updatedAt": "2026-10-24",
-  "link": "https://github.com/Hz6826/XJTUNetLogin",
+  "link": "https://github.com/Hz6826/CampusNetLogin",
   "iconColor": { "light": "#2f6fb3", "dark": "#9ecbff" },
   "titleBarColor": { "light": "#e3ebf5", "dark": "#1e2430" },
   "borderColor": { "light": "#b9c6d6", "dark": "#3a4a63" },
@@ -162,5 +162,5 @@ QPlainTextEdit {
 ## 分发
 
 - 仓库根目录 `themes/` 下的主题会随**便携版** zip 一起发布（放在 exe 同目录的 `themes/` 下）。
-- **安装版**由 Inno Setup 把主题装到 `%APPDATA%\Hz6826\XJTUNetLogin\themes`，卸载时保留（不删除用户修改过的主题）。
+- **安装版**由 Inno Setup 把主题装到 `%APPDATA%\Hz6826\CampusNetLogin\themes`，卸载时保留（不删除用户修改过的主题）。
 - 第三方主题可以打包成文件夹直接放进主题目录，也可以参考仓库里的示例主题结构提交 PR。

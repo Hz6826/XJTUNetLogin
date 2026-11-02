@@ -32,7 +32,7 @@
 
 namespace AutoStart {
     QString identifier() {
-        return "XJTUNetLogin";
+        return "CampusNetLogin";
     }
 
 #ifdef Q_OS_WIN

@@ -12,7 +12,7 @@ if (EXISTS "${GIT_VERSION_FILE}")
     include("${GIT_VERSION_FILE}")
 endif ()
 
-set(XJTU_VERSION    "${VERSION}")
+set(APP_VERSION    "${VERSION}")
 set(PROJECT_NAME    "${NAME}")
 
 # 单配置生成器（Ninja / Makefile）直接读 CMAKE_BUILD_TYPE；

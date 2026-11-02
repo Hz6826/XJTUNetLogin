@@ -1,5 +1,5 @@
 ; ============================================================
-;  XJTUNetLogin Inno Setup 脚本
+;  CampusNetLogin Inno Setup 脚本
 ;  由 CI 通过 /DMyAppVersion=x.y.z 传入版本号
 ; ============================================================
 
@@ -15,14 +15,14 @@
   #define OutputDir "..\dist"
 #endif
 
-#define MyAppName       "仙交网络助手"
-#define MyAppNameEn     "XJTUNetLogin"
+#define MyAppName       "校园网络助手"
+#define MyAppNameEn     "CampusNetLogin"
 #define MyAppPublisher  "Hz6826"
-#define MyAppURL        "https://github.com/Hz6826/XJTUNetLogin"
-#define MyAppExeName    "XJTUNetLogin.exe"
+#define MyAppURL        "https://github.com/Hz6826/CampusNetLogin"
+#define MyAppExeName    "CampusNetLogin.exe"
 
-; 已确认：QStandardPaths::AppDataLocation = %APPDATA%\Hz6826\XJTUNetLogin
-#define AppDataSubDir   "Hz6826\XJTUNetLogin"
+; 已确认：QStandardPaths::AppDataLocation = %APPDATA%\Hz6826\CampusNetLogin
+#define AppDataSubDir   "Hz6826\CampusNetLogin"
 
 [Setup]
 ; 固定 GUID，升级时才会覆盖安装而不是并存
@@ -92,10 +92,10 @@ begin
   // ---- 1) 静默清理启动项（程序写入 HKCU\Run，升级不会到这里） ----
   RegDeleteValue(HKCU,
     'Software\Microsoft\Windows\CurrentVersion\Run',
-    'XJTUNetLogin');
+    'CampusNetLogin');
   RegDeleteValue(HKCU,
     'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run',
-    'XJTUNetLogin');
+    'CampusNetLogin');
 
   // ---- 2) 询问是否删除配置与日志 ----
   DataDir := ExpandConstant('{userappdata}\{#AppDataSubDir}');

@@ -1,11 +1,11 @@
 #pragma once
 namespace AppInfo {
-    inline constexpr auto *Version     = "@XJTU_VERSION@";
+    inline constexpr auto *Version     = "@APP_VERSION@";
     inline constexpr auto *Name        = "@PROJECT_NAME@";
-    inline constexpr auto *Description = "仙交网络助手";
+    inline constexpr auto *Description = "校园网络助手";
     inline constexpr auto *Author      = "Hz6826";
     inline constexpr auto *AuthorUrl   = "https://github.com/Hz6826";
-    inline constexpr auto *RepoUrl     = "https://github.com/Hz6826/XJTUNetLogin";
+    inline constexpr auto *RepoUrl     = "https://github.com/Hz6826/CampusNetLogin";
     inline constexpr auto *License     = "MIT";
 
     inline constexpr auto *GitHashShort = "@GIT_HASH_SHORT@";
